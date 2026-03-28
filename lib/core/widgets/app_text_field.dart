@@ -40,10 +40,7 @@ class AppTextField extends StatelessWidget {
       textCapitalization: textCapitalization,
       maxLines: maxLines,
       onFieldSubmitted: onSubmitted,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-      ),
+      decoration: InputDecoration(labelText: label, hintText: hint),
     );
   }
 }

@@ -24,6 +24,7 @@ import 'package:teacher_vault/features/final_grades/presentation/screens/final_g
 import 'package:teacher_vault/features/absences/presentation/screens/absence_form_screen.dart';
 import 'package:teacher_vault/features/absences/presentation/screens/student_absences_screen.dart';
 import 'package:teacher_vault/features/absences/presentation/screens/class_record_absences_screen.dart';
+import 'package:teacher_vault/core/shell/app_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final client = ref.watch(supabaseProvider);
@@ -35,7 +36,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: refresh,
     redirect: (context, state) {
       final loggedIn = client.auth.currentSession != null;
-      final atAuth = state.matchedLocation == AppRoutes.login ||
+      final atAuth =
+          state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register;
       if (!loggedIn && !atAuth) return AppRoutes.login;
       if (loggedIn && atAuth) return AppRoutes.home;
@@ -50,167 +52,96 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.register,
         builder: (context, state) => const RegisterScreen(),
       ),
-      GoRoute(
-        path: AppRoutes.home,
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.profile,
-        builder: (context, state) => const ProfileScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.students,
-        builder: (context, state) => const StudentsListScreen(),
+      ShellRoute(
+        builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(
-            path: 'new',
-            builder: (context, state) => const StudentFormScreen(),
+            path: AppRoutes.home,
+            builder: (context, state) => const HomeScreen(),
           ),
           GoRoute(
-            path: ':studentId',
-            builder: (context, state) {
-              final id = state.pathParameters['studentId']!;
-              return StudentDetailScreen(studentId: id);
-            },
+            path: AppRoutes.profile,
+            builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.students,
+            builder: (context, state) => const StudentsListScreen(),
             routes: [
               GoRoute(
-                path: 'edit',
-                builder: (context, state) {
-                  final id = state.pathParameters['studentId']!;
-                  return StudentFormScreen(studentId: id);
-                },
+                path: 'new',
+                builder: (context, state) => const StudentFormScreen(),
               ),
               GoRoute(
-                path: 'grades',
+                path: ':studentId',
                 builder: (context, state) {
                   final id = state.pathParameters['studentId']!;
-                  return StudentGradesScreen(studentId: id);
+                  return StudentDetailScreen(studentId: id);
                 },
                 routes: [
                   GoRoute(
-                    path: 'new',
+                    path: 'edit',
                     builder: (context, state) {
                       final id = state.pathParameters['studentId']!;
-                      return GradeFormScreen(studentId: id);
+                      return StudentFormScreen(studentId: id);
                     },
                   ),
                   GoRoute(
-                    path: ':gradeId/edit',
-                    builder: (context, state) {
-                      final sid = state.pathParameters['studentId']!;
-                      final gid = state.pathParameters['gradeId']!;
-                      return GradeFormScreen(
-                        studentId: sid,
-                        gradeId: gid,
-                      );
-                    },
-                  ),
-                ],
-              ),
-              GoRoute(
-                path: 'final-grades/:classSubjectId',
-                builder: (context, state) {
-                  final sid = state.pathParameters['studentId']!;
-                  final csid = state.pathParameters['classSubjectId']!;
-                  return FinalGradeFormScreen(
-                    studentId: sid,
-                    classSubjectId: csid,
-                  );
-                },
-              ),
-              GoRoute(
-                path: 'absences',
-                builder: (context, state) {
-                  final id = state.pathParameters['studentId']!;
-                  return StudentAbsencesScreen(studentId: id);
-                },
-                routes: [
-                  GoRoute(
-                    path: 'new',
+                    path: 'grades',
                     builder: (context, state) {
                       final id = state.pathParameters['studentId']!;
-                      return AbsenceFormScreen(studentId: id);
-                    },
-                  ),
-                  GoRoute(
-                    path: ':absenceId/edit',
-                    builder: (context, state) {
-                      final sid = state.pathParameters['studentId']!;
-                      final aid = state.pathParameters['absenceId']!;
-                      return AbsenceFormScreen(
-                        studentId: sid,
-                        absenceId: aid,
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-      GoRoute(
-        path: AppRoutes.classes,
-        builder: (context, state) => const ClassesListScreen(),
-        routes: [
-          GoRoute(
-            path: 'new',
-            builder: (context, state) => const ClassFormScreen(),
-          ),
-          GoRoute(
-            path: ':classId',
-            builder: (context, state) {
-              final id = state.pathParameters['classId']!;
-              return ClassDetailScreen(classId: id);
-            },
-            routes: [
-              GoRoute(
-                path: 'edit',
-                builder: (context, state) {
-                  final id = state.pathParameters['classId']!;
-                  return ClassFormScreen(classId: id);
-                },
-              ),
-              GoRoute(
-                path: 'record-absences',
-                builder: (context, state) {
-                  final id = state.pathParameters['classId']!;
-                  return ClassRecordAbsencesScreen(classId: id);
-                },
-              ),
-              GoRoute(
-                path: 'subject-grades/:classSubjectId',
-                builder: (context, state) {
-                  final cid = state.pathParameters['classId']!;
-                  final csid = state.pathParameters['classSubjectId']!;
-                  return ClassSubjectGradesScreen(
-                    classId: cid,
-                    classSubjectId: csid,
-                  );
-                },
-                routes: [
-                  GoRoute(
-                    path: 'final-grades',
-                    builder: (context, state) {
-                      final cid = state.pathParameters['classId']!;
-                      final csid = state.pathParameters['classSubjectId']!;
-                      return ClassSubjectFinalGradesListScreen(
-                        classId: cid,
-                        classSubjectId: csid,
-                      );
+                      return StudentGradesScreen(studentId: id);
                     },
                     routes: [
                       GoRoute(
-                        path: 'students/:studentId/final-grade',
+                        path: 'new',
                         builder: (context, state) {
-                          final cid = state.pathParameters['classId']!;
-                          final csid =
-                              state.pathParameters['classSubjectId']!;
+                          final id = state.pathParameters['studentId']!;
+                          return GradeFormScreen(studentId: id);
+                        },
+                      ),
+                      GoRoute(
+                        path: ':gradeId/edit',
+                        builder: (context, state) {
                           final sid = state.pathParameters['studentId']!;
-                          return FinalGradeFormScreen(
+                          final gid = state.pathParameters['gradeId']!;
+                          return GradeFormScreen(studentId: sid, gradeId: gid);
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'final-grades/:classSubjectId',
+                    builder: (context, state) {
+                      final sid = state.pathParameters['studentId']!;
+                      final csid = state.pathParameters['classSubjectId']!;
+                      return FinalGradeFormScreen(
+                        studentId: sid,
+                        classSubjectId: csid,
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'absences',
+                    builder: (context, state) {
+                      final id = state.pathParameters['studentId']!;
+                      return StudentAbsencesScreen(studentId: id);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'new',
+                        builder: (context, state) {
+                          final id = state.pathParameters['studentId']!;
+                          return AbsenceFormScreen(studentId: id);
+                        },
+                      ),
+                      GoRoute(
+                        path: ':absenceId/edit',
+                        builder: (context, state) {
+                          final sid = state.pathParameters['studentId']!;
+                          final aid = state.pathParameters['absenceId']!;
+                          return AbsenceFormScreen(
                             studentId: sid,
-                            classSubjectId: csid,
-                            classId: cid,
+                            absenceId: aid,
                           );
                         },
                       ),
@@ -220,29 +151,102 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-        ],
-      ),
-      GoRoute(
-        path: AppRoutes.subjects,
-        builder: (context, state) => const SubjectsListScreen(),
-        routes: [
           GoRoute(
-            path: 'new',
-            builder: (context, state) => const SubjectFormScreen(),
-          ),
-          GoRoute(
-            path: ':subjectId',
-            builder: (context, state) {
-              final id = state.pathParameters['subjectId']!;
-              return SubjectDetailScreen(subjectId: id);
-            },
+            path: AppRoutes.classes,
+            builder: (context, state) => const ClassesListScreen(),
             routes: [
               GoRoute(
-                path: 'edit',
+                path: 'new',
+                builder: (context, state) => const ClassFormScreen(),
+              ),
+              GoRoute(
+                path: ':classId',
+                builder: (context, state) {
+                  final id = state.pathParameters['classId']!;
+                  return ClassDetailScreen(classId: id);
+                },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final id = state.pathParameters['classId']!;
+                      return ClassFormScreen(classId: id);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'record-absences',
+                    builder: (context, state) {
+                      final id = state.pathParameters['classId']!;
+                      return ClassRecordAbsencesScreen(classId: id);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'subject-grades/:classSubjectId',
+                    builder: (context, state) {
+                      final cid = state.pathParameters['classId']!;
+                      final csid = state.pathParameters['classSubjectId']!;
+                      return ClassSubjectGradesScreen(
+                        classId: cid,
+                        classSubjectId: csid,
+                      );
+                    },
+                    routes: [
+                      GoRoute(
+                        path: 'final-grades',
+                        builder: (context, state) {
+                          final cid = state.pathParameters['classId']!;
+                          final csid = state.pathParameters['classSubjectId']!;
+                          return ClassSubjectFinalGradesListScreen(
+                            classId: cid,
+                            classSubjectId: csid,
+                          );
+                        },
+                        routes: [
+                          GoRoute(
+                            path: 'students/:studentId/final-grade',
+                            builder: (context, state) {
+                              final cid = state.pathParameters['classId']!;
+                              final csid =
+                                  state.pathParameters['classSubjectId']!;
+                              final sid = state.pathParameters['studentId']!;
+                              return FinalGradeFormScreen(
+                                studentId: sid,
+                                classSubjectId: csid,
+                                classId: cid,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AppRoutes.subjects,
+            builder: (context, state) => const SubjectsListScreen(),
+            routes: [
+              GoRoute(
+                path: 'new',
+                builder: (context, state) => const SubjectFormScreen(),
+              ),
+              GoRoute(
+                path: ':subjectId',
                 builder: (context, state) {
                   final id = state.pathParameters['subjectId']!;
-                  return SubjectFormScreen(subjectId: id);
+                  return SubjectDetailScreen(subjectId: id);
                 },
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (context, state) {
+                      final id = state.pathParameters['subjectId']!;
+                      return SubjectFormScreen(subjectId: id);
+                    },
+                  ),
+                ],
               ),
             ],
           ),

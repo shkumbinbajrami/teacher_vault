@@ -3,8 +3,8 @@ import 'package:teacher_vault/features/auth/presentation/providers/auth_reposito
 
 final registerControllerProvider =
     NotifierProvider<RegisterController, AsyncValue<void>>(
-  RegisterController.new,
-);
+      RegisterController.new,
+    );
 
 class RegisterController extends Notifier<AsyncValue<void>> {
   @override
@@ -17,11 +17,9 @@ class RegisterController extends Notifier<AsyncValue<void>> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(authRepositoryProvider).signUp(
-            email: email,
-            password: password,
-            fullName: fullName,
-          );
+      await ref
+          .read(authRepositoryProvider)
+          .signUp(email: email, password: password, fullName: fullName);
     });
   }
 }

@@ -40,9 +40,7 @@ class FinalGradesRepository {
         .eq('student_id', studentId)
         .eq('class_subject_id', classSubjectId);
     final list = rows as List<dynamic>;
-    final byPeriod = <int, List<int>>{
-      for (var p = 1; p <= 3; p++) p: <int>[],
-    };
+    final byPeriod = <int, List<int>>{for (var p = 1; p <= 3; p++) p: <int>[]};
     for (final raw in list) {
       final m = raw as Map<String, dynamic>;
       final p = _asInt(m['period']);
@@ -91,12 +89,16 @@ class FinalGradesRepository {
     );
 
     if (existing != null) {
-      await _client.from(_table).update({
-        'period1': period1,
-        'period2': period2,
-        'period3': period3,
-        'final': finalMark,
-      }).eq('id', existing.id).eq('teacher_id', teacherId);
+      await _client
+          .from(_table)
+          .update({
+            'period1': period1,
+            'period2': period2,
+            'period3': period3,
+            'final': finalMark,
+          })
+          .eq('id', existing.id)
+          .eq('teacher_id', teacherId);
 
       final again = await fetchForStudentSubject(
         teacherId: teacherId,

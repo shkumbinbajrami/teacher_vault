@@ -3,18 +3,19 @@ import 'package:go_router/go_router.dart';
 import 'package:teacher_vault/core/theme/app_theme.dart';
 
 /// Top navigation: full-width primary strip so it reads as chrome, not as a content card.
-class TeacherVaultAppBar extends StatelessWidget implements PreferredSizeWidget {
+class TeacherVaultAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
   const TeacherVaultAppBar.dashboard({
     super.key,
     required this.onProfile,
     required this.onSignOut,
     this.profileAvatarUrl,
     this.profileNameForInitial,
-  })  : title = null,
-        actions = null,
-        leading = null,
-        automaticallyImplyLeading = true,
-        _isDashboard = true;
+  }) : title = null,
+       actions = null,
+       leading = null,
+       automaticallyImplyLeading = true,
+       _isDashboard = true;
 
   const TeacherVaultAppBar({
     super.key,
@@ -22,11 +23,11 @@ class TeacherVaultAppBar extends StatelessWidget implements PreferredSizeWidget 
     this.actions,
     this.leading,
     this.automaticallyImplyLeading = true,
-  })  : onProfile = null,
-        onSignOut = null,
-        profileAvatarUrl = null,
-        profileNameForInitial = null,
-        _isDashboard = false;
+  }) : onProfile = null,
+       onSignOut = null,
+       profileAvatarUrl = null,
+       profileNameForInitial = null,
+       _isDashboard = false;
 
   final bool _isDashboard;
   final Widget? title;
@@ -35,8 +36,10 @@ class TeacherVaultAppBar extends StatelessWidget implements PreferredSizeWidget 
   final bool automaticallyImplyLeading;
   final VoidCallback? onProfile;
   final VoidCallback? onSignOut;
+
   /// Public image URL for the signed-in teacher (dashboard profile control).
   final String? profileAvatarUrl;
+
   /// Display name used for the initial letter when [profileAvatarUrl] is null.
   final String? profileNameForInitial;
 
@@ -49,7 +52,10 @@ class TeacherVaultAppBar extends StatelessWidget implements PreferredSizeWidget 
 
   @override
   Widget build(BuildContext context) {
-    assert(_isDashboard || title != null, 'TeacherVaultAppBar requires a title');
+    assert(
+      _isDashboard || title != null,
+      'TeacherVaultAppBar requires a title',
+    );
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -65,9 +71,9 @@ class TeacherVaultAppBar extends StatelessWidget implements PreferredSizeWidget 
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, _verticalPad, 12, _verticalPad),
         child: Theme(
-          data: Theme.of(context).copyWith(
-            iconButtonTheme: IconButtonThemeData(style: iconStyle),
-          ),
+          data: Theme.of(
+            context,
+          ).copyWith(iconButtonTheme: IconButtonThemeData(style: iconStyle)),
           child: SizedBox(
             height: _innerHeight,
             child: _isDashboard
@@ -126,11 +132,7 @@ class _DashboardRow extends StatelessWidget {
             color: onPrimary.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(AppTheme.radius),
           ),
-          child: Icon(
-            Icons.auto_stories_rounded,
-            color: onPrimary,
-            size: 24,
-          ),
+          child: Icon(Icons.auto_stories_rounded, color: onPrimary, size: 24),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -240,7 +242,8 @@ class _StandardRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final canPop = context.canPop();
 
-    final Widget leadingSlot = leading ??
+    final Widget leadingSlot =
+        leading ??
         (automaticallyImplyLeading && canPop
             ? IconButton(
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
@@ -259,10 +262,10 @@ class _StandardRow extends StatelessWidget {
             child: DefaultTextStyle(
               style: (textTheme.titleMedium ?? const TextStyle(fontSize: 18))
                   .copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.15,
-                color: onPrimary,
-              ),
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.15,
+                    color: onPrimary,
+                  ),
               child: title,
             ),
           ),

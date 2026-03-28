@@ -56,7 +56,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await ref.read(registerControllerProvider.notifier).signUp(
+    await ref
+        .read(registerControllerProvider.notifier)
+        .signUp(
           email: _email.text,
           password: _password.text,
           fullName: _fullName.text,
@@ -68,38 +70,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final reg = ref.watch(registerControllerProvider);
     final loading = reg.isLoading;
 
-    ref.listen<AsyncValue<void>>(
-      registerControllerProvider,
-      (prev, next) {
-        next.whenOrNull(
-          data: (_) {
-            if (prev?.isLoading != true) return;
-            final session = ref.read(supabaseProvider).auth.currentSession;
-            if (session == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Check your email to confirm your account if required.',
-                  ),
-                ),
-              );
-              context.pop();
-            }
-            // If session exists, [GoRouter] redirect sends user to home.
-          },
-          error: (e, _) {
+    ref.listen<AsyncValue<void>>(registerControllerProvider, (prev, next) {
+      next.whenOrNull(
+        data: (_) {
+          if (prev?.isLoading != true) return;
+          final session = ref.read(supabaseProvider).auth.currentSession;
+          if (session == null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(authErrorMessage(e))),
+              const SnackBar(
+                content: Text(
+                  'Check your email to confirm your account if required.',
+                ),
+              ),
             );
-          },
-        );
-      },
-    );
+            context.pop();
+          }
+          // If session exists, [GoRouter] redirect sends user to home.
+        },
+        error: (e, _) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(authErrorMessage(e))));
+        },
+      );
+    });
 
     return Scaffold(
-      appBar: TeacherVaultAppBar(
-        title: const Text('Register'),
-      ),
+      appBar: TeacherVaultAppBar(title: const Text('Register')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

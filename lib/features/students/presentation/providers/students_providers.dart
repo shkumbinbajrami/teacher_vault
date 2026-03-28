@@ -14,12 +14,13 @@ final studentsListProvider = FutureProvider<List<Student>>((ref) async {
   return ref.watch(studentsRepositoryProvider).listByTeacherId(teacher.id);
 });
 
-final studentDetailProvider =
-    FutureProvider.family<Student?, String>((ref, studentId) async {
+final studentDetailProvider = FutureProvider.family<Student?, String>((
+  ref,
+  studentId,
+) async {
   final teacher = await ref.watch(currentTeacherProvider.future);
   if (teacher == null) return null;
-  return ref.watch(studentsRepositoryProvider).fetchById(
-        teacherId: teacher.id,
-        studentId: studentId,
-      );
+  return ref
+      .watch(studentsRepositoryProvider)
+      .fetchById(teacherId: teacher.id, studentId: studentId);
 });

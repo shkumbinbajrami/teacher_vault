@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:teacher_vault/core/router/app_routes.dart';
 import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
 import 'package:teacher_vault/features/classes/presentation/providers/classes_providers.dart';
 import 'package:teacher_vault/features/final_grades/presentation/providers/final_grades_providers.dart';
@@ -21,7 +22,9 @@ class ClassSubjectFinalGradesListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enrolledAsync = ref.watch(classEnrolledStudentsProvider(classId));
-    final assignmentsAsync = ref.watch(classSubjectAssignmentsProvider(classId));
+    final assignmentsAsync = ref.watch(
+      classSubjectAssignmentsProvider(classId),
+    );
 
     final subjectLabel = assignmentsAsync.maybeWhen(
       data: (list) {
@@ -34,11 +37,9 @@ class ClassSubjectFinalGradesListScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: TeacherVaultAppBar(
-        title: Text('$subjectLabel — Final grades'),
-      ),
+      appBar: TeacherVaultAppBar(title: Text('$subjectLabel — Final grades')),
       body: enrolledAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const TVSkeletonList(),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -88,7 +89,9 @@ class ClassSubjectFinalGradesListScreen extends ConsumerWidget {
                 ),
                 title: Text(s.fullName),
                 subtitle: Text(
-                  hasFinal ? 'Saved final row — tap to review or edit' : 'Tap to review suggestions and save',
+                  hasFinal
+                      ? 'Saved final row — tap to review or edit'
+                      : 'Tap to review suggestions and save',
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => context.push(

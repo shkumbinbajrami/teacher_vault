@@ -60,11 +60,15 @@ class StudentsRepository {
     String? email,
     String? avatarUrl,
   }) async {
-    await _client.from(_table).update({
-      'full_name': fullName.trim(),
-      'email': _nullIfBlank(email),
-      'avatar_url': _nullIfBlank(avatarUrl),
-    }).eq('id', studentId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .update({
+          'full_name': fullName.trim(),
+          'email': _nullIfBlank(email),
+          'avatar_url': _nullIfBlank(avatarUrl),
+        })
+        .eq('id', studentId)
+        .eq('teacher_id', teacherId);
   }
 
   Future<void> delete({

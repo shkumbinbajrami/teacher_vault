@@ -16,20 +16,23 @@ final subjectsListProvider = FutureProvider<List<Subject>>((ref) async {
 });
 
 /// Subject id → number of distinct classes using that subject.
-final subjectClassCountsProvider = FutureProvider<Map<String, int>>((ref) async {
+final subjectClassCountsProvider = FutureProvider<Map<String, int>>((
+  ref,
+) async {
   final teacher = await ref.watch(currentTeacherProvider.future);
   if (teacher == null) return {};
-  return ref.watch(classSubjectsRepositoryProvider).distinctClassCountBySubjectForTeacher(
-        teacher.id,
-      );
+  return ref
+      .watch(classSubjectsRepositoryProvider)
+      .distinctClassCountBySubjectForTeacher(teacher.id);
 });
 
-final subjectDetailProvider =
-    FutureProvider.family<Subject?, String>((ref, subjectId) async {
+final subjectDetailProvider = FutureProvider.family<Subject?, String>((
+  ref,
+  subjectId,
+) async {
   final teacher = await ref.watch(currentTeacherProvider.future);
   if (teacher == null) return null;
-  return ref.watch(subjectsRepositoryProvider).fetchById(
-        teacherId: teacher.id,
-        subjectId: subjectId,
-      );
+  return ref
+      .watch(subjectsRepositoryProvider)
+      .fetchById(teacherId: teacher.id, subjectId: subjectId);
 });

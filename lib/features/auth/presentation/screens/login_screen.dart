@@ -40,10 +40,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await ref.read(loginControllerProvider.notifier).signIn(
-          email: _email.text,
-          password: _password.text,
-        );
+    await ref
+        .read(loginControllerProvider.notifier)
+        .signIn(email: _email.text, password: _password.text);
   }
 
   @override
@@ -51,18 +50,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final login = ref.watch(loginControllerProvider);
     final loading = login.isLoading;
 
-    ref.listen<AsyncValue<void>>(
-      loginControllerProvider,
-      (prev, next) {
-        next.whenOrNull(
-          error: (e, _) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(authErrorMessage(e))),
-            );
-          },
-        );
-      },
-    );
+    ref.listen<AsyncValue<void>>(loginControllerProvider, (prev, next) {
+      next.whenOrNull(
+        error: (e, _) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(authErrorMessage(e))));
+        },
+      );
+    });
 
     return Scaffold(
       body: SafeArea(
@@ -78,17 +74,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     Text(
                       'Teacher Vault',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Sign in to continue',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),

@@ -66,7 +66,8 @@ class ClassStudentsRepository {
         'student_id': studentId,
       });
     } on PostgrestException catch (e) {
-      final duplicate = e.code == '23505' ||
+      final duplicate =
+          e.code == '23505' ||
           e.message.toLowerCase().contains('duplicate') ||
           e.message.toLowerCase().contains('unique');
       if (duplicate) {
@@ -81,8 +82,10 @@ class ClassStudentsRepository {
     required String teacherId,
     required String studentId,
   }) async {
-    final links =
-        await _client.from(_table).select('class_id').eq('student_id', studentId);
+    final links = await _client
+        .from(_table)
+        .select('class_id')
+        .eq('student_id', studentId);
     final linkList = links as List<dynamic>;
     if (linkList.isEmpty) return [];
 
@@ -119,8 +122,10 @@ class ClassStudentsRepository {
     required List<String> classIds,
   }) async {
     if (classIds.isEmpty) return 0;
-    final links =
-        await _client.from(_table).select('student_id').inFilter('class_id', classIds);
+    final links = await _client
+        .from(_table)
+        .select('student_id')
+        .inFilter('class_id', classIds);
     final linkList = links as List<dynamic>;
     final set = <String>{};
     for (final e in linkList) {

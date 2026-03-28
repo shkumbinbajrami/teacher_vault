@@ -60,11 +60,15 @@ class SubjectsRepository {
     String? description,
     required bool isActive,
   }) async {
-    await _client.from(_table).update({
-      'name': name.trim(),
-      'description': _nullIfBlank(description),
-      'is_active': isActive,
-    }).eq('id', subjectId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .update({
+          'name': name.trim(),
+          'description': _nullIfBlank(description),
+          'is_active': isActive,
+        })
+        .eq('id', subjectId)
+        .eq('teacher_id', teacherId);
   }
 
   Future<void> delete({

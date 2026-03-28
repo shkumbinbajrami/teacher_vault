@@ -26,67 +26,68 @@ final classesListProvider = FutureProvider<List<SchoolClass>>((ref) async {
   return ref.watch(classesRepositoryProvider).listByTeacherId(teacher.id);
 });
 
-final classDetailProvider =
-    FutureProvider.family<SchoolClass?, String>((ref, classId) async {
+final classDetailProvider = FutureProvider.family<SchoolClass?, String>((
+  ref,
+  classId,
+) async {
   final teacher = await ref.watch(currentTeacherProvider.future);
   if (teacher == null) return null;
-  return ref.watch(classesRepositoryProvider).fetchById(
-        teacherId: teacher.id,
-        classId: classId,
-      );
+  return ref
+      .watch(classesRepositoryProvider)
+      .fetchById(teacherId: teacher.id, classId: classId);
 });
 
 final classEnrolledStudentsProvider =
     FutureProvider.family<List<Student>, String>((ref, classId) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) return [];
-  return ref.watch(classStudentsRepositoryProvider).listEnrolledStudents(
-        teacherId: teacher.id,
-        classId: classId,
-      );
-});
+      final teacher = await ref.watch(currentTeacherProvider.future);
+      if (teacher == null) return [];
+      return ref
+          .watch(classStudentsRepositoryProvider)
+          .listEnrolledStudents(teacherId: teacher.id, classId: classId);
+    });
 
 /// Classes this student is enrolled in.
-final studentClassesProvider =
-    FutureProvider.family<List<SchoolClass>, String>((ref, studentId) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) return [];
-  return ref.watch(classStudentsRepositoryProvider).listClassesForStudent(
-        teacherId: teacher.id,
-        studentId: studentId,
-      );
-});
+final studentClassesProvider = FutureProvider.family<List<SchoolClass>, String>(
+  (ref, studentId) async {
+    final teacher = await ref.watch(currentTeacherProvider.future);
+    if (teacher == null) return [];
+    return ref
+        .watch(classStudentsRepositoryProvider)
+        .listClassesForStudent(teacherId: teacher.id, studentId: studentId);
+  },
+);
 
 /// All class–subject assignments for classes this student is enrolled in.
 final studentClassSubjectAssignmentsProvider =
-    FutureProvider.family<List<ClassSubjectAssignment>, String>(
-        (ref, studentId) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) return [];
-  final classes =
-      await ref.watch(studentClassesProvider(studentId).future);
-  final repo = ref.watch(classSubjectsRepositoryProvider);
-  final out = <ClassSubjectAssignment>[];
-  for (final c in classes) {
-    final a = await repo.listAssignmentsForClass(
-      teacherId: teacher.id,
-      classId: c.id,
-    );
-    out.addAll(a);
-  }
-  out.sort((a, b) => a.subject.name.compareTo(b.subject.name));
-  return out;
-});
+    FutureProvider.family<List<ClassSubjectAssignment>, String>((
+      ref,
+      studentId,
+    ) async {
+      final teacher = await ref.watch(currentTeacherProvider.future);
+      if (teacher == null) return [];
+      final classes = await ref.watch(studentClassesProvider(studentId).future);
+      final repo = ref.watch(classSubjectsRepositoryProvider);
+      final out = <ClassSubjectAssignment>[];
+      for (final c in classes) {
+        final a = await repo.listAssignmentsForClass(
+          teacherId: teacher.id,
+          classId: c.id,
+        );
+        out.addAll(a);
+      }
+      out.sort((a, b) => a.subject.name.compareTo(b.subject.name));
+      return out;
+    });
 
 /// `class_subjects` rows for a class (includes id for grades).
 final classSubjectAssignmentsProvider =
-    FutureProvider.family<List<ClassSubjectAssignment>, String>(
-  (ref, classId) async {
-    final teacher = await ref.watch(currentTeacherProvider.future);
-    if (teacher == null) return [];
-    return ref.watch(classSubjectsRepositoryProvider).listAssignmentsForClass(
-          teacherId: teacher.id,
-          classId: classId,
-        );
-  },
-);
+    FutureProvider.family<List<ClassSubjectAssignment>, String>((
+      ref,
+      classId,
+    ) async {
+      final teacher = await ref.watch(currentTeacherProvider.future);
+      if (teacher == null) return [];
+      return ref
+          .watch(classSubjectsRepositoryProvider)
+          .listAssignmentsForClass(teacherId: teacher.id, classId: classId);
+    });

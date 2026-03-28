@@ -37,8 +37,7 @@ abstract final class AppRoutes {
   static String classSubjectFinalGradesHubPath(
     String classId,
     String classSubjectId,
-  ) =>
-      '/classes/$classId/subject-grades/$classSubjectId/final-grades';
+  ) => '/classes/$classId/subject-grades/$classSubjectId/final-grades';
 
   static String classSubjectFinalGradeFormPath(
     String classId,
@@ -50,8 +49,7 @@ abstract final class AppRoutes {
   static String studentFinalGradeFormPath(
     String studentId,
     String classSubjectId,
-  ) =>
-      '/students/$studentId/final-grades/$classSubjectId';
+  ) => '/students/$studentId/final-grades/$classSubjectId';
 
   static String studentAbsencesPath(String studentId) =>
       '/students/$studentId/absences';
@@ -65,8 +63,7 @@ abstract final class AppRoutes {
   static const subjects = '/subjects';
   static const subjectsNew = '/subjects/new';
 
-  static String subjectDetailPath(String subjectId) =>
-      '/subjects/$subjectId';
+  static String subjectDetailPath(String subjectId) => '/subjects/$subjectId';
 
   static String subjectEditPath(String subjectId) =>
       '/subjects/$subjectId/edit';

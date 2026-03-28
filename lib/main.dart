@@ -24,10 +24,7 @@ Future<void> main() async {
     // Optional file; [Env] may still resolve via --dart-define.
   }
 
-  await Supabase.initialize(
-    url: Env.supabaseUrl,
-    anonKey: Env.supabaseAnonKey,
-  );
+  await Supabase.initialize(url: Env.supabaseUrl, anonKey: Env.supabaseAnonKey);
 
   runApp(const ProviderScope(child: TeacherVaultApp()));
 }

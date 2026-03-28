@@ -21,30 +21,35 @@ class TeacherWorkspaceSummary {
   final int classSubjectAssignmentCount;
 }
 
-final teacherWorkspaceSummaryProvider =
-    FutureProvider<TeacherWorkspaceSummary>((ref) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) {
-    return const TeacherWorkspaceSummary(
-      classCount: 0,
-      studentCount: 0,
-      subjectCount: 0,
-      classSubjectAssignmentCount: 0,
+final teacherWorkspaceSummaryProvider = FutureProvider<TeacherWorkspaceSummary>(
+  (ref) async {
+    final teacher = await ref.watch(currentTeacherProvider.future);
+    if (teacher == null) {
+      return const TeacherWorkspaceSummary(
+        classCount: 0,
+        studentCount: 0,
+        subjectCount: 0,
+        classSubjectAssignmentCount: 0,
+      );
+    }
+    final tid = teacher.id;
+    final classes = await ref
+        .read(classesRepositoryProvider)
+        .listByTeacherId(tid);
+    final students = await ref
+        .read(studentsRepositoryProvider)
+        .listByTeacherId(tid);
+    final subjects = await ref
+        .read(subjectsRepositoryProvider)
+        .listByTeacherId(tid);
+    final links = await ref
+        .read(classSubjectsRepositoryProvider)
+        .countAssignmentsForTeacher(tid);
+    return TeacherWorkspaceSummary(
+      classCount: classes.length,
+      studentCount: students.length,
+      subjectCount: subjects.length,
+      classSubjectAssignmentCount: links,
     );
-  }
-  final tid = teacher.id;
-  final classes = await ref.read(classesRepositoryProvider).listByTeacherId(tid);
-  final students =
-      await ref.read(studentsRepositoryProvider).listByTeacherId(tid);
-  final subjects =
-      await ref.read(subjectsRepositoryProvider).listByTeacherId(tid);
-  final links = await ref
-      .read(classSubjectsRepositoryProvider)
-      .countAssignmentsForTeacher(tid);
-  return TeacherWorkspaceSummary(
-    classCount: classes.length,
-    studentCount: students.length,
-    subjectCount: subjects.length,
-    classSubjectAssignmentCount: links,
-  );
-});
+  },
+);

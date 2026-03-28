@@ -9,7 +9,8 @@ class GradesRepository {
   static const _table = 'grades';
 
   /// Select list for nested `class_subjects` + `students` labels (depends on FKs in Supabase).
-  static const _selectWithContext = 'id, teacher_id, student_id, class_subject_id, '
+  static const _selectWithContext =
+      'id, teacher_id, student_id, class_subject_id, '
       'grade_value, note, period, created_at, updated_at, '
       'class_subjects(subjects(name), classes(name)), '
       'students(full_name)';
@@ -113,18 +114,26 @@ class GradesRepository {
     required int period,
     String? note,
   }) async {
-    await _client.from(_table).update({
-      'grade_value': gradeValue,
-      'period': period,
-      'note': _nullIfBlank(note),
-    }).eq('id', gradeId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .update({
+          'grade_value': gradeValue,
+          'period': period,
+          'note': _nullIfBlank(note),
+        })
+        .eq('id', gradeId)
+        .eq('teacher_id', teacherId);
   }
 
   Future<void> delete({
     required String teacherId,
     required String gradeId,
   }) async {
-    await _client.from(_table).delete().eq('id', gradeId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .delete()
+        .eq('id', gradeId)
+        .eq('teacher_id', teacherId);
   }
 
   /// Number of grade rows for any of [classSubjectIds].

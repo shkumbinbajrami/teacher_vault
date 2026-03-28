@@ -32,29 +32,31 @@ class AbsenceListQuery {
           other.classSubjectId == classSubjectId;
 
   @override
-  int get hashCode =>
-      Object.hash(studentId, fromDate, toDate, classSubjectId);
+  int get hashCode => Object.hash(studentId, fromDate, toDate, classSubjectId);
 }
 
 final studentAbsencesProvider =
     FutureProvider.family<List<Absence>, AbsenceListQuery>((ref, q) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) return [];
-  return ref.watch(absencesRepositoryProvider).listForStudent(
-        teacherId: teacher.id,
-        studentId: q.studentId,
-        fromDate: q.fromDate,
-        toDate: q.toDate,
-        classSubjectId: q.classSubjectId,
-      );
-});
+      final teacher = await ref.watch(currentTeacherProvider.future);
+      if (teacher == null) return [];
+      return ref
+          .watch(absencesRepositoryProvider)
+          .listForStudent(
+            teacherId: teacher.id,
+            studentId: q.studentId,
+            fromDate: q.fromDate,
+            toDate: q.toDate,
+            classSubjectId: q.classSubjectId,
+          );
+    });
 
-final absenceDetailProvider =
-    FutureProvider.family<Absence?, String>((ref, absenceId) async {
+final absenceDetailProvider = FutureProvider.family<Absence?, String>((
+  ref,
+  absenceId,
+) async {
   final teacher = await ref.watch(currentTeacherProvider.future);
   if (teacher == null) return null;
-  return ref.watch(absencesRepositoryProvider).fetchById(
-        teacherId: teacher.id,
-        absenceId: absenceId,
-      );
+  return ref
+      .watch(absencesRepositoryProvider)
+      .fetchById(teacherId: teacher.id, absenceId: absenceId);
 });

@@ -13,7 +13,9 @@ final currentTeacherProvider = FutureProvider<Teacher?>((ref) async {
   ref.watch(authSessionProvider);
   final user = ref.watch(supabaseProvider).auth.currentUser;
   if (user == null) return null;
-  return ref.watch(teacherRepositoryProvider).ensureTeacherProfile(
+  return ref
+      .watch(teacherRepositoryProvider)
+      .ensureTeacherProfile(
         userId: user.id,
         email: user.email,
         userMetadata: user.userMetadata,
@@ -22,8 +24,8 @@ final currentTeacherProvider = FutureProvider<Teacher?>((ref) async {
 
 final profileUpdateControllerProvider =
     NotifierProvider<ProfileUpdateController, AsyncValue<void>>(
-  ProfileUpdateController.new,
-);
+      ProfileUpdateController.new,
+    );
 
 class ProfileUpdateController extends Notifier<AsyncValue<void>> {
   @override
@@ -38,7 +40,9 @@ class ProfileUpdateController extends Notifier<AsyncValue<void>> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(teacherRepositoryProvider).updateProfile(
+      await ref
+          .read(teacherRepositoryProvider)
+          .updateProfile(
             teacherId: teacherId,
             fullName: fullName,
             email: email,

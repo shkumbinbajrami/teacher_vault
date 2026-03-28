@@ -3,8 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:teacher_vault/core/router/app_routes.dart';
 import 'package:teacher_vault/core/theme/app_theme.dart';
-import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
+import 'package:teacher_vault/core/widgets/tv_badge.dart';
+import 'package:teacher_vault/core/widgets/tv_button.dart';
+import 'package:teacher_vault/core/widgets/tv_card.dart';
+import 'package:teacher_vault/core/widgets/tv_empty_state.dart';
+import 'package:teacher_vault/core/widgets/tv_page_header.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
 import 'package:teacher_vault/features/subjects/domain/subject.dart';
 import 'package:teacher_vault/features/subjects/presentation/providers/subjects_providers.dart';
 
@@ -43,140 +48,89 @@ class _SubjectsListScreenState extends ConsumerState<SubjectsListScreen> {
     ]);
   }
 
-  static InputBorder _searchBorder(ColorScheme scheme) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        borderSide: BorderSide(
-          color: scheme.outlineVariant.withValues(alpha: 0.65),
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     final subjectsAsync = ref.watch(subjectsListProvider);
     final countsAsync = ref.watch(subjectClassCountsProvider);
-    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: TeacherVaultAppBar(
-        title: const Text('Subjects'),
-      ),
-      body: subjectsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  postgrestErrorMessage(e),
-                  textAlign: TextAlign.center,
+              TVPageHeader(
+                title: 'Subjects',
+                subtitle: 'Manage all courses and subjects you teach.',
+                primaryActionLabel: 'Add Subject',
+                onPrimaryAction: () => context.push(AppRoutes.subjectsNew),
+              ),
+              TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'Search subjects by name or description',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
                 ),
               ),
-              FilledButton(
-                onPressed: () {
-                  ref.invalidate(subjectsListProvider);
-                  ref.invalidate(subjectClassCountsProvider);
-                },
-                child: const Text('Retry'),
+              const SizedBox(height: 24),
+              Expanded(
+                child: subjectsAsync.when(
+                  loading: () => const TVSkeletonList(),
+                  error: (e, _) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          postgrestErrorMessage(e),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: AppTheme.errorColor),
+                        ),
+                        const SizedBox(height: 16),
+                        TVSecondaryButton(
+                          label: 'Retry',
+                          onPressed: _onRefresh,
+                        ),
+                      ],
+                    ),
+                  ),
+                  data: (subjects) {
+                    final classCounts = countsAsync.maybeWhen(
+                      data: (m) => m,
+                      orElse: () => <String, int>{},
+                    );
+                    final countsLoading = countsAsync.isLoading;
+                    final countsError = countsAsync.hasError;
+
+                    return RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: _buildListBody(
+                        context,
+                        subjects: subjects,
+                        filtered: _applySearch(subjects),
+                        classCounts: classCounts,
+                        countsLoading: countsLoading,
+                        countsError: countsError,
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
         ),
-        data: (subjects) {
-          final classCounts = countsAsync.maybeWhen(
-            data: (m) => m,
-            orElse: () => <String, int>{},
-          );
-          final countsLoading = countsAsync.isLoading;
-          final countsError = countsAsync.hasError;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Material(
-                color: scheme.surfaceContainerLow,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                  child: SizedBox(
-                    height: 44,
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: (_) => setState(() {}),
-                      textInputAction: TextInputAction.search,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: 'Search by name or description',
-                        hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          size: 20,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        prefixIconConstraints: const BoxConstraints(
-                          minWidth: 40,
-                          maxHeight: 44,
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                tooltip: 'Clear',
-                                icon: const Icon(Icons.clear_rounded, size: 20),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {});
-                                },
-                              )
-                            : null,
-                        filled: false,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 12,
-                        ),
-                        border: _searchBorder(scheme),
-                        enabledBorder: _searchBorder(scheme),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radius),
-                          borderSide: BorderSide(
-                            color: scheme.primary,
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: scheme.outlineVariant.withValues(alpha: 0.35),
-              ),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: _buildListBody(
-                    context,
-                    subjects: subjects,
-                    filtered: _applySearch(subjects),
-                    classCounts: classCounts,
-                    countsLoading: countsLoading,
-                    countsError: countsError,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.subjectsNew),
-        icon: const Icon(Icons.add),
-        label: const Text('Add subject'),
       ),
     );
   }
@@ -192,9 +146,14 @@ class _SubjectsListScreenState extends ConsumerState<SubjectsListScreen> {
     if (subjects.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 120),
-          Center(child: Text('No subjects yet. Tap + to add one.')),
+        children: [
+          TVEmptyState(
+            title: 'No subjects yet',
+            message: 'Create a subject to start assigning it to classes.',
+            icon: Icons.menu_book_rounded,
+            actionLabel: 'Add First Subject',
+            onAction: () => context.push(AppRoutes.subjectsNew),
+          ),
         ],
       );
     }
@@ -202,16 +161,11 @@ class _SubjectsListScreenState extends ConsumerState<SubjectsListScreen> {
     if (filtered.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(24, 48, 24, 100),
-        children: [
-          Center(
-            child: Text(
-              'No subjects match your search.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-              textAlign: TextAlign.center,
-            ),
+        children: const [
+          TVEmptyState(
+            title: 'No matched subjects',
+            message: 'Try adjusting your search query.',
+            icon: Icons.search_off_rounded,
           ),
         ],
       );
@@ -219,9 +173,9 @@ class _SubjectsListScreenState extends ConsumerState<SubjectsListScreen> {
 
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      padding: const EdgeInsets.only(bottom: 64),
       itemCount: filtered.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final s = filtered[index];
         final n = classCounts[s.id] ?? 0;
@@ -251,7 +205,6 @@ class _SubjectRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final s = subject;
 
@@ -259,120 +212,101 @@ class _SubjectRowCard extends StatelessWidget {
     if (countsError) {
       classesLine = 'Could not load class usage';
     } else if (classCountLoading) {
-      classesLine = 'Loading classes…';
+      classesLine = 'Loading classes...';
     } else if (distinctClassCount == 0) {
-      classesLine = 'Not used in any class yet';
+      classesLine = 'Unassigned';
     } else if (distinctClassCount == 1) {
       classesLine = 'Used in 1 class';
     } else {
       classesLine = 'Used in $distinctClassCount classes';
     }
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.subjectDetailPath(s.id)),
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                ),
-                child: Icon(
-                  Icons.menu_book_outlined,
-                  color: scheme.primary,
-                  size: 26,
-                ),
+    return TVCard(
+      padding: EdgeInsets.zero,
+      onTap: () => context.push(AppRoutes.subjectDetailPath(s.id)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            s.name,
-                            style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+              child: const Icon(
+                Icons.menu_book_rounded,
+                color: AppTheme
+                    .secondaryColor, // Secondary is not defined in AppTheme directly. Will use Warning/Secondary logic.
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          s.name,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textPrimaryColor,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        if (!s.isActive) ...[
-                          const SizedBox(width: 8),
-                          Chip(
-                            label: const Text('Inactive'),
-                            visualDensity: VisualDensity.compact,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            padding: EdgeInsets.zero,
-                            labelPadding:
-                                const EdgeInsets.symmetric(horizontal: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radius),
-                            ),
-                            side: BorderSide(color: scheme.outlineVariant),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.meeting_room_outlined,
-                          size: 16,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            classesLine,
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      ),
+                      if (!s.isActive) ...[
+                        const SizedBox(width: 8),
+                        const TVBadge(
+                          label: 'Inactive',
+                          type: TVBadgeType.warning,
                         ),
                       ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  if (s.description != null &&
+                      s.description!.trim().isNotEmpty) ...[
+                    Text(
+                      s.description!.trim(),
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (s.description != null &&
-                        s.description!.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                    const SizedBox(height: 8),
+                  ],
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.meeting_room_outlined,
+                        size: 16,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 4),
                       Text(
-                        s.description!.trim(),
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
+                        classesLine,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textSecondaryColor,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant,
-              ),
-            ],
-          ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.outlineColor,
+            ),
+          ],
         ),
       ),
     );

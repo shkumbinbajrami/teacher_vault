@@ -5,6 +5,7 @@ import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
 import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
 import 'package:teacher_vault/core/widgets/app_button.dart';
 import 'package:teacher_vault/core/widgets/app_text_field.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
 import 'package:teacher_vault/features/absences/presentation/providers/absences_providers.dart';
 import 'package:teacher_vault/features/class_subjects/domain/class_subject_assignment.dart';
 import 'package:teacher_vault/features/classes/presentation/providers/classes_providers.dart';
@@ -30,8 +31,7 @@ class _ClassRecordAbsencesScreenState
   DateTime? _date;
   bool _saving = false;
 
-  static DateTime _dateOnly(DateTime d) =>
-      DateTime(d.year, d.month, d.day);
+  static DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
   @override
   void initState() {
@@ -62,15 +62,15 @@ class _ClassRecordAbsencesScreenState
 
   Future<void> _save() async {
     if (_classSubjectId == null || _classSubjectId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose a subject.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Choose a subject.')));
       return;
     }
     if (_date == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose a date.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Choose a date.')));
       return;
     }
     if (_selected.isEmpty) {
@@ -80,8 +80,9 @@ class _ClassRecordAbsencesScreenState
       return;
     }
 
-    final assignments =
-        await ref.read(classSubjectAssignmentsProvider(widget.classId).future);
+    final assignments = await ref.read(
+      classSubjectAssignmentsProvider(widget.classId).future,
+    );
     if (!mounted) return;
     final validIds = assignments.map((a) => a.classSubjectId).toSet();
     if (!validIds.contains(_classSubjectId)) {
@@ -112,7 +113,9 @@ class _ClassRecordAbsencesScreenState
 
     setState(() => _saving = true);
     try {
-      await ref.read(absencesRepositoryProvider).createBulkForClass(
+      await ref
+          .read(absencesRepositoryProvider)
+          .createBulkForClass(
             teacherId: teacher.id,
             classId: widget.classId,
             classSubjectId: _classSubjectId!,
@@ -132,9 +135,9 @@ class _ClassRecordAbsencesScreenState
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(postgrestErrorMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -144,10 +147,12 @@ class _ClassRecordAbsencesScreenState
   @override
   Widget build(BuildContext context) {
     final classAsync = ref.watch(classDetailProvider(widget.classId));
-    final assignmentsAsync =
-        ref.watch(classSubjectAssignmentsProvider(widget.classId));
-    final enrolledAsync =
-        ref.watch(classEnrolledStudentsProvider(widget.classId));
+    final assignmentsAsync = ref.watch(
+      classSubjectAssignmentsProvider(widget.classId),
+    );
+    final enrolledAsync = ref.watch(
+      classEnrolledStudentsProvider(widget.classId),
+    );
 
     return Scaffold(
       appBar: TeacherVaultAppBar(
@@ -157,7 +162,7 @@ class _ClassRecordAbsencesScreenState
         ),
       ),
       body: classAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const TVSkeletonList(),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -169,19 +174,19 @@ class _ClassRecordAbsencesScreenState
             return const Center(child: Text('Class not found.'));
           }
           return enrolledAsync.when(
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
+            loading: () => const TVProgressIndicator(),
             error: (e, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
-                child:
-                    Text(postgrestErrorMessage(e), textAlign: TextAlign.center),
+                child: Text(
+                  postgrestErrorMessage(e),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
             data: (students) {
               return assignmentsAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
+                loading: () => const TVProgressIndicator(),
                 error: (e, _) => Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
@@ -218,8 +223,9 @@ class _ClassRecordAbsencesScreenState
                     );
                   }
 
-                  final validCs =
-                      assignments.map((a) => a.classSubjectId).toSet();
+                  final validCs = assignments
+                      .map((a) => a.classSubjectId)
+                      .toSet();
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -229,7 +235,8 @@ class _ClassRecordAbsencesScreenState
                           padding: const EdgeInsets.all(24),
                           children: [
                             DropdownButtonFormField<String>(
-                              value: _classSubjectId != null &&
+                              value:
+                                  _classSubjectId != null &&
                                       validCs.contains(_classSubjectId)
                                   ? _classSubjectId
                                   : null,
@@ -261,9 +268,9 @@ class _ClassRecordAbsencesScreenState
                                       _date != null
                                           ? '${_date!.year}-${_date!.month.toString().padLeft(2, '0')}-${_date!.day.toString().padLeft(2, '0')}'
                                           : 'Select',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodyLarge,
                                     ),
                                   ),
                                   IconButton(
@@ -286,8 +293,9 @@ class _ClassRecordAbsencesScreenState
                               children: [
                                 Text(
                                   'Absent students',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 const Spacer(),
                                 TextButton(
@@ -299,8 +307,7 @@ class _ClassRecordAbsencesScreenState
                                   child: const Text('All'),
                                 ),
                                 TextButton(
-                                  onPressed: () =>
-                                      setState(_selected.clear),
+                                  onPressed: () => setState(_selected.clear),
                                   child: const Text('None'),
                                 ),
                               ],

@@ -19,7 +19,9 @@ class Env {
 
   /// Publishable key or legacy anon JWT — passed to [Supabase.initialize] as `anonKey`.
   static String get supabaseAnonKey {
-    const publishableDefine = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+    const publishableDefine = String.fromEnvironment(
+      'SUPABASE_PUBLISHABLE_KEY',
+    );
     if (publishableDefine.isNotEmpty) return publishableDefine;
     const legacyDefine = String.fromEnvironment('SUPABASE_ANON_KEY');
     if (legacyDefine.isNotEmpty) return legacyDefine;

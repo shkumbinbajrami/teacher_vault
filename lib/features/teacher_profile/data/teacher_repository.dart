@@ -26,18 +26,23 @@ class TeacherRepository {
     );
 
     try {
-      final row = await _client.from(_table).insert({
-        'user_id': userId,
-        'full_name': defaultName,
-        'email': email,
-        'is_active': true,
-      }).select().maybeSingle();
+      final row = await _client
+          .from(_table)
+          .insert({
+            'user_id': userId,
+            'full_name': defaultName,
+            'email': email,
+            'is_active': true,
+          })
+          .select()
+          .maybeSingle();
 
       if (row != null) {
         return Teacher.fromRow(Map<String, dynamic>.from(row));
       }
     } on PostgrestException catch (e) {
-      final duplicate = e.code == '23505' ||
+      final duplicate =
+          e.code == '23505' ||
           e.message.toLowerCase().contains('duplicate') ||
           e.message.toLowerCase().contains('unique');
       if (duplicate) {
@@ -85,12 +90,15 @@ class TeacherRepository {
     required String avatarUrl,
     required String bio,
   }) async {
-    await _client.from(_table).update({
-      'full_name': _nullIfBlank(fullName),
-      'email': _nullIfBlank(email),
-      'avatar_url': _nullIfBlank(avatarUrl),
-      'bio': _nullIfBlank(bio),
-    }).eq('id', teacherId);
+    await _client
+        .from(_table)
+        .update({
+          'full_name': _nullIfBlank(fullName),
+          'email': _nullIfBlank(email),
+          'avatar_url': _nullIfBlank(avatarUrl),
+          'bio': _nullIfBlank(bio),
+        })
+        .eq('id', teacherId);
   }
 
   /// Persists only [avatar_url] (e.g. right after a Storage upload).
@@ -98,9 +106,10 @@ class TeacherRepository {
     required String teacherId,
     required String? avatarUrl,
   }) async {
-    await _client.from(_table).update({
-      'avatar_url': _nullIfBlank(avatarUrl ?? ''),
-    }).eq('id', teacherId);
+    await _client
+        .from(_table)
+        .update({'avatar_url': _nullIfBlank(avatarUrl ?? '')})
+        .eq('id', teacherId);
   }
 
   static String? _nullIfBlank(String value) {

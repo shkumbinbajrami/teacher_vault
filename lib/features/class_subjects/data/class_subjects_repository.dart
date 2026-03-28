@@ -56,8 +56,9 @@ class ClassSubjectsRepository {
     final list = subjectRows as List<dynamic>;
     final byId = <String, Subject>{
       for (final r in list)
-        '${(r as Map<String, dynamic>)['id']}':
-            Subject.fromRow(Map<String, dynamic>.from(r)),
+        '${(r as Map<String, dynamic>)['id']}': Subject.fromRow(
+          Map<String, dynamic>.from(r),
+        ),
     };
 
     final out = linkList.map((e) {
@@ -110,7 +111,8 @@ class ClassSubjectsRepository {
         'subject_id': subjectId,
       });
     } on PostgrestException catch (e) {
-      final duplicate = e.code == '23505' ||
+      final duplicate =
+          e.code == '23505' ||
           e.message.toLowerCase().contains('duplicate') ||
           e.message.toLowerCase().contains('unique');
       if (duplicate) {
@@ -162,8 +164,10 @@ class ClassSubjectsRepository {
         .maybeSingle();
     if (sub == null) return [];
 
-    final links =
-        await _client.from(_table).select('id, class_id').eq('subject_id', subjectId);
+    final links = await _client
+        .from(_table)
+        .select('id, class_id')
+        .eq('subject_id', subjectId);
     final linkList = links as List<dynamic>;
     if (linkList.isEmpty) return [];
 
@@ -180,8 +184,9 @@ class ClassSubjectsRepository {
     final classesList = classRows as List<dynamic>;
     final byId = <String, SchoolClass>{
       for (final r in classesList)
-        '${(r as Map<String, dynamic>)['id']}':
-            SchoolClass.fromRow(Map<String, dynamic>.from(r)),
+        '${(r as Map<String, dynamic>)['id']}': SchoolClass.fromRow(
+          Map<String, dynamic>.from(r),
+        ),
     };
 
     final out = <SubjectClassLink>[];
@@ -190,10 +195,9 @@ class ClassSubjectsRepository {
       final cid = '${m['class_id']}';
       final sc = byId[cid];
       if (sc != null) {
-        out.add(SubjectClassLink(
-          classSubjectId: '${m['id']}',
-          schoolClass: sc,
-        ));
+        out.add(
+          SubjectClassLink(classSubjectId: '${m['id']}', schoolClass: sc),
+        );
       }
     }
     out.sort((a, b) => a.schoolClass.name.compareTo(b.schoolClass.name));

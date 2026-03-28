@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:teacher_vault/core/router/app_routes.dart';
 import 'package:teacher_vault/core/theme/app_theme.dart';
-import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
+import 'package:teacher_vault/core/widgets/tv_button.dart';
+import 'package:teacher_vault/core/widgets/tv_card.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
 import 'package:teacher_vault/features/absences/domain/absence.dart';
 import 'package:teacher_vault/features/absences/presentation/providers/absences_providers.dart';
 import 'package:teacher_vault/features/classes/domain/school_class.dart';
@@ -37,6 +39,7 @@ class StudentDetailScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.errorColor),
             child: const Text('Delete'),
           ),
         ],
@@ -47,17 +50,16 @@ class StudentDetailScreen extends ConsumerWidget {
     try {
       final teacher = await ref.read(currentTeacherProvider.future);
       if (teacher == null) return;
-      await ref.read(studentsRepositoryProvider).delete(
-            teacherId: teacher.id,
-            studentId: studentId,
-          );
+      await ref
+          .read(studentsRepositoryProvider)
+          .delete(teacherId: teacher.id, studentId: studentId);
       ref.invalidate(studentsListProvider);
       if (context.mounted) context.pop();
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(postgrestErrorMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
       }
     }
   }
@@ -67,48 +69,66 @@ class StudentDetailScreen extends ConsumerWidget {
     final async = ref.watch(studentDetailProvider(studentId));
 
     return Scaffold(
-      appBar: TeacherVaultAppBar(
-        title: const Text('Student'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit',
-            onPressed: () {
-              context.push(AppRoutes.studentEditPath(studentId));
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Delete',
-            onPressed: () => _confirmDelete(context, ref),
-          ),
-        ],
-      ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(postgrestErrorMessage(e), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () =>
-                      ref.invalidate(studentDetailProvider(studentId)),
-                  child: const Text('Retry'),
-                ),
-              ],
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32, 24, 32, 16),
+              child: Row(
+                children: [
+                  TVSecondaryButton(
+                    label: 'Back',
+                    icon: Icons.arrow_back_rounded,
+                    onPressed: () => context.pop(),
+                  ),
+                  const Spacer(),
+                  TVSecondaryButton(
+                    label: 'Edit',
+                    icon: Icons.edit_outlined,
+                    onPressed: () =>
+                        context.push(AppRoutes.studentEditPath(studentId)),
+                  ),
+                  const SizedBox(width: 8),
+                  TVSecondaryButton(
+                    label: 'Delete',
+                    icon: Icons.delete_outline,
+                    onPressed: () => _confirmDelete(context, ref),
+                  ),
+                ],
+              ),
             ),
-          ),
+            Expanded(
+              child: async.when(
+                loading: () => const TVSkeletonList(),
+                error: (e, _) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        postgrestErrorMessage(e),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: AppTheme.errorColor),
+                      ),
+                      const SizedBox(height: 16),
+                      TVSecondaryButton(
+                        label: 'Retry',
+                        onPressed: () =>
+                            ref.invalidate(studentDetailProvider(studentId)),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (student) {
+                  if (student == null) {
+                    return const Center(child: Text('Student not found.'));
+                  }
+                  return _StudentProfileBody(student: student);
+                },
+              ),
+            ),
+          ],
         ),
-        data: (student) {
-          if (student == null) {
-            return const Center(child: Text('Student not found.'));
-          }
-          return _StudentProfileBody(student: student);
-        },
       ),
     );
   }
@@ -143,8 +163,9 @@ class _StudentProfileBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final classesAsync = ref.watch(studentClassesProvider(student.id));
-    final assignmentsAsync =
-        ref.watch(studentClassSubjectAssignmentsProvider(student.id));
+    final assignmentsAsync = ref.watch(
+      studentClassSubjectAssignmentsProvider(student.id),
+    );
     final gradesAsync = ref.watch(studentGradesProvider(student.id));
     final absencesAsync = ref.watch(
       studentAbsencesProvider(AbsenceListQuery(studentId: student.id)),
@@ -152,19 +173,8 @@ class _StudentProfileBody extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= 840;
-        final bottomInset = 100.0;
-        final pad = const EdgeInsets.fromLTRB(16, 12, 16, 0);
-
-        Widget scrollable(Widget child) => SingleChildScrollView(
-              padding: EdgeInsets.only(
-                left: pad.left,
-                right: pad.right,
-                top: pad.top,
-                bottom: bottomInset,
-              ),
-              child: child,
-            );
+        final pad = const EdgeInsets.fromLTRB(32, 0, 32, 64);
+        final wide = constraints.maxWidth >= 900;
 
         final header = _ProfileHeaderCard(student: student);
         final stats = _buildStatsRow(
@@ -174,40 +184,40 @@ class _StudentProfileBody extends ConsumerWidget {
           absencesAsync: absencesAsync,
         );
         final classesSection = _buildClassesSection(context, classesAsync);
-        final subjectsSection =
-            _buildSubjectsSection(context, assignmentsAsync, classesAsync);
+        final subjectsSection = _buildSubjectsSection(
+          context,
+          assignmentsAsync,
+          classesAsync,
+        );
 
         if (wide) {
-          return scrollable(
-            Row(
+          return SingleChildScrollView(
+            padding: pad,
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  flex: 5,
+                  flex: 4,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       header,
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 20),
                       classesSection,
                     ],
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 24),
                 Expanded(
-                  flex: 5,
+                  flex: 6,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       stats,
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 20),
                       subjectsSection,
-                      const SizedBox(height: 14),
-                      _buildRecentGradesCard(
-                        context,
-                        gradesAsync,
-                        student.id,
-                      ),
+                      const SizedBox(height: 20),
+                      _buildRecentGradesCard(context, gradesAsync, student.id),
                     ],
                   ),
                 ),
@@ -216,18 +226,19 @@ class _StudentProfileBody extends ConsumerWidget {
           );
         }
 
-        return scrollable(
-          Column(
+        return SingleChildScrollView(
+          padding: pad,
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               header,
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               stats,
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               classesSection,
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               subjectsSection,
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               _buildRecentGradesCard(context, gradesAsync, student.id),
             ],
           ),
@@ -242,63 +253,51 @@ class _StudentProfileBody extends ConsumerWidget {
     required AsyncValue<List<Grade>> gradesAsync,
     required AsyncValue<List<Absence>> absencesAsync,
   }) {
-    final scheme = Theme.of(context).colorScheme;
-
     final classesCount = classesAsync.valueOrNull?.length ?? 0;
     final grades = gradesAsync.valueOrNull ?? [];
     final avg = _avgGrade(grades);
     final absences = absencesAsync.valueOrNull ?? <Absence>[];
 
-    String gradesSubtitle;
-    if (gradesAsync.isLoading) {
-      gradesSubtitle = '…';
-    } else if (grades.isEmpty) {
-      gradesSubtitle = 'No grades yet';
-    } else {
-      gradesSubtitle =
-          'Avg ${avg!.toStringAsFixed(1)} · ${grades.length} total';
-    }
+    String gradesSubtitle = gradesAsync.isLoading
+        ? '...'
+        : (grades.isEmpty
+              ? 'No grades yet'
+              : 'Avg ${avg!.toStringAsFixed(1)} · ${grades.length} total');
 
-    String absencesSubtitle;
-    if (absencesAsync.isLoading) {
-      absencesSubtitle = '…';
-    } else if (absences.isEmpty) {
-      absencesSubtitle = 'None logged';
-    } else {
-      absencesSubtitle = '${absences.length} record${absences.length == 1 ? '' : 's'}';
-    }
+    String absencesSubtitle = absencesAsync.isLoading
+        ? '...'
+        : (absences.isEmpty ? 'None logged' : '${absences.length} records');
 
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             icon: Icons.meeting_room_outlined,
-            iconColor: scheme.primary,
-            value: classesAsync.isLoading ? '…' : '$classesCount',
+            iconColor: AppTheme.primaryColor,
+            value: classesAsync.isLoading ? '...' : '$classesCount',
             label: classesCount == 1 ? 'Class' : 'Classes',
             subtitle: 'Enrolled',
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         Expanded(
           child: _StatCard(
             icon: Icons.grade_outlined,
-            iconColor: scheme.tertiary,
+            iconColor: AppTheme.successColor,
             value: gradesAsync.isLoading
-                ? '…'
+                ? '...'
                 : (grades.isEmpty ? '—' : '${grades.length}'),
             label: 'Grades',
             subtitle: gradesSubtitle,
-            onTap: () =>
-                context.push(AppRoutes.studentGradesPath(student.id)),
+            onTap: () => context.push(AppRoutes.studentGradesPath(student.id)),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         Expanded(
           child: _StatCard(
             icon: Icons.event_busy_outlined,
-            iconColor: scheme.error,
-            value: absencesAsync.isLoading ? '…' : '${absences.length}',
+            iconColor: AppTheme.errorColor,
+            value: absencesAsync.isLoading ? '...' : '${absences.length}',
             label: 'Absences',
             subtitle: absencesSubtitle,
             onTap: () =>
@@ -314,33 +313,32 @@ class _StudentProfileBody extends ConsumerWidget {
     AsyncValue<List<SchoolClass>> async,
   ) {
     return _SectionCard(
-      title: 'Classes',
-      subtitle: 'Where this student is enrolled',
+      title: 'Current Enrollments',
+      subtitle: 'Classes this student belongs to',
       child: async.when(
         loading: () => const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          child: TVProgressIndicator(),
         ),
         error: (e, _) => Text(
           postgrestErrorMessage(e),
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
+          style: const TextStyle(color: AppTheme.errorColor),
         ),
         data: (classes) {
           if (classes.isEmpty) {
-            return Text(
-              'Not enrolled in any class yet. Add them from a class page.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+            return const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: Text(
+                'Not enrolled in any class yet. Add them from a class page.',
+                style: TextStyle(color: AppTheme.textSecondaryColor),
+              ),
             );
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const SizedBox(height: 12),
               for (final c in classes) ...[
-                if (c != classes.first) const SizedBox(height: 8),
+                if (c != classes.first) const SizedBox(height: 12),
                 _ClassEnrollmentRow(schoolClass: c),
               ],
             ],
@@ -356,54 +354,68 @@ class _StudentProfileBody extends ConsumerWidget {
     AsyncValue<List<SchoolClass>> classesAsync,
   ) {
     final classNames = _classNames(classesAsync.valueOrNull ?? []);
+    final textTheme = Theme.of(context).textTheme;
 
     return _SectionCard(
-      title: 'Subjects',
-      subtitle: 'Courses linked through their classes',
+      title: 'Active Subjects',
+      subtitle: 'Courses linked through enrolled classes',
       child: assignmentsAsync.when(
         loading: () => const Center(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          child: TVProgressIndicator(),
         ),
         error: (e, _) => Text(
           postgrestErrorMessage(e),
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
+          style: const TextStyle(color: AppTheme.errorColor),
         ),
         data: (assignments) {
           if (assignments.isEmpty) {
-            return Text(
-              'No subjects yet. Assign subjects to the student’s classes first.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+            return const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: Text(
+                'No subjects available. Assign subjects to their classes first.',
+                style: TextStyle(color: AppTheme.textSecondaryColor),
+              ),
             );
           }
-          final lines = assignments
-              .map((a) {
-                final cn = classNames[a.classId] ?? 'Class';
-                return '${a.subject.name} · $cn';
-              })
-              .toList();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (var i = 0; i < lines.length; i++) ...[
-                if (i > 0) const SizedBox(height: 6),
+              const SizedBox(height: 12),
+              for (var i = 0; i < assignments.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.menu_book_outlined,
-                      size: 18,
-                      color: Theme.of(context).colorScheme.primary,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.menu_book_outlined,
+                        size: 18,
+                        color: AppTheme.secondaryColor,
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        lines[i],
-                        style: Theme.of(context).textTheme.bodyMedium,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            assignments[i].subject.name,
+                            style: textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            classNames[assignments[i].classId] ?? 'Class',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textSecondaryColor,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -421,108 +433,93 @@ class _StudentProfileBody extends ConsumerWidget {
     AsyncValue<List<Grade>> gradesAsync,
     String studentId,
   ) {
+    final textTheme = Theme.of(context).textTheme;
+
     return _SectionCard(
-      title: 'Recent grades',
-      subtitle: 'Latest entries (by period)',
+      title: 'Recent Grades',
+      subtitle: 'Latest entries by period',
       child: gradesAsync.when(
         loading: () => const Center(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+          child: TVProgressIndicator(),
         ),
         error: (e, _) => Text(
           postgrestErrorMessage(e),
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
+          style: const TextStyle(color: AppTheme.errorColor),
         ),
         data: (grades) {
           final recent = _recentGrades(grades, 5);
           if (recent.isEmpty) {
-            return Text(
-              'No grades recorded yet.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+            return const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: Text(
+                'No grades recorded yet.',
+                style: TextStyle(color: AppTheme.textSecondaryColor),
+              ),
             );
           }
           return Column(
             children: [
+              const SizedBox(height: 12),
               for (var i = 0; i < recent.length; i++) ...[
-                if (i > 0) const Divider(height: 16),
+                if (i > 0)
+                  const Divider(height: 24, color: AppTheme.outlineColor),
                 InkWell(
                   onTap: () =>
                       context.push(AppRoutes.studentGradesPath(studentId)),
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withValues(alpha: 0.5),
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radius),
-                          ),
-                          child: Text(
-                            '${recent[i].gradeValue}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.successColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${recent[i].gradeValue}',
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.successColor,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                recent[i].subjectName?.trim().isNotEmpty ==
-                                        true
-                                    ? recent[i].subjectName!
-                                    : 'Subject',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(fontWeight: FontWeight.w600),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              recent[i].subjectName?.trim().isNotEmpty == true
+                                  ? recent[i].subjectName!
+                                  : 'Subject',
+                              style: textTheme.bodyLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                              Text(
-                                [
-                                  if (recent[i].className != null &&
-                                      recent[i].className!.isNotEmpty)
-                                    recent[i].className,
-                                  'Period ${recent[i].period}',
-                                ].whereType<String>().join(' · '),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              [
+                                if (recent[i].className != null &&
+                                    recent[i].className!.isNotEmpty)
+                                  recent[i].className,
+                                'Pd ${recent[i].period}',
+                              ].whereType<String>().join(' · '),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textSecondaryColor,
                               ),
-                            ],
-                          ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        Icon(
-                          Icons.chevron_right_rounded,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
-                      ],
-                    ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppTheme.outlineColor,
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -541,47 +538,51 @@ class _ClassEnrollmentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final c = schoolClass;
-    return Material(
-      color: scheme.surface,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.outlineColor),
       ),
       child: InkWell(
         onTap: () => context.push(AppRoutes.classDetailPath(c.id)),
-        borderRadius: BorderRadius.circular(AppTheme.radius),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(Icons.meeting_room_outlined, color: scheme.primary, size: 22),
-              const SizedBox(width: 10),
+              const Icon(
+                Icons.meeting_room_outlined,
+                color: AppTheme.primaryColor,
+                size: 24,
+              ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       c.name,
-                      style: textTheme.bodyLarge?.copyWith(
+                      style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       c.schoolYear + (c.isActive ? '' : ' · Inactive'),
                       style: textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                        color: AppTheme.textSecondaryColor,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.outlineColor,
+              ),
             ],
           ),
         ),
@@ -597,140 +598,139 @@ class _ProfileHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final s = student;
-    final initial =
-        s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?';
+    final initial = s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?';
 
     Widget avatar;
     final url = s.avatarUrl;
-    const r = 40.0;
+    const size = 96.0;
     if (url != null && url.isNotEmpty) {
-      avatar = CircleAvatar(radius: r, backgroundImage: NetworkImage(url));
+      avatar = ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Image.network(url, width: size, height: size, fit: BoxFit.cover),
+      );
     } else {
-      avatar = CircleAvatar(
-        radius: r,
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.primary,
-        child: Text(initial, style: textTheme.headlineSmall),
+      avatar = Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primaryColor,
+          ),
+        ),
       );
     }
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                avatar,
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        s.fullName,
-                        style: textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.3,
-                        ),
+    return TVCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              avatar,
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      s.fullName,
+                      style: textTheme.displaySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimaryColor,
+                        letterSpacing: -0.5,
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.email_outlined,
-                            size: 18,
-                            color: scheme.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              (s.email != null && s.email!.trim().isNotEmpty)
-                                  ? s.email!.trim()
-                                  : 'No email on file',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: (s.email != null &&
-                                        s.email!.trim().isNotEmpty)
-                                    ? null
-                                    : scheme.onSurfaceVariant,
-                                fontStyle: (s.email != null &&
-                                        s.email!.trim().isNotEmpty)
-                                    ? null
-                                    : FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Divider(
-              height: 1,
-              color: scheme.outlineVariant.withValues(alpha: 0.35),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Icon(
-                  Icons.badge_outlined,
-                  size: 16,
-                  color: scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: SelectableText(
-                    s.id,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontFamily: 'monospace',
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.email_outlined,
+                          size: 16,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            (s.email != null && s.email!.trim().isNotEmpty)
+                                ? s.email!.trim()
+                                : 'No email on file',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: AppTheme.textSecondaryColor,
+                              fontStyle:
+                                  (s.email != null &&
+                                      s.email!.trim().isNotEmpty)
+                                  ? null
+                                  : FontStyle.italic,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Divider(height: 1, color: AppTheme.outlineColor),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Icon(
+                Icons.badge_outlined,
+                size: 16,
+                color: AppTheme.textSecondaryColor,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SelectableText(
+                  s.id,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: AppTheme.textSecondaryColor,
+                    fontFamily: 'monospace',
                   ),
                 ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: 'Copy student ID',
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: s.id));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Student ID copied')),
-                    );
-                  },
-                  icon: Icon(
-                    Icons.copy_outlined,
-                    size: 18,
-                    color: scheme.onSurfaceVariant,
-                  ),
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Copy student ID',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: s.id));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Student ID copied')),
+                  );
+                },
+                icon: const Icon(
+                  Icons.copy_outlined,
+                  size: 16,
+                  color: AppTheme.textSecondaryColor,
                 ),
-              ],
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({
-    required this.title,
-    this.subtitle,
-    required this.child,
-  });
+  const _SectionCard({required this.title, this.subtitle, required this.child});
 
   final String title;
   final String? subtitle;
@@ -738,38 +738,28 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    return TVCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
             Text(
-              title,
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
+              subtitle!,
+              style: textTheme.bodySmall?.copyWith(
+                color: AppTheme.textSecondaryColor,
               ),
             ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                subtitle!,
-                style: textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            const SizedBox(height: 14),
-            child,
           ],
-        ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }
@@ -794,53 +784,52 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final body = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: iconColor),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
-            ),
-          ),
-          Text(
-            label,
-            style: textTheme.labelMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
 
-    return Material(
-      color: scheme.surface,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        child: body,
+    return TVCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              value,
+              style: textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textPrimaryColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimaryColor,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: textTheme.bodySmall?.copyWith(
+                color: AppTheme.textSecondaryColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

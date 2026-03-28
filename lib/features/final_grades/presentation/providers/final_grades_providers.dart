@@ -31,32 +31,37 @@ class FinalGradeDraftParams {
 }
 
 final finalGradeDraftProvider =
-    FutureProvider.family<FinalGradeDraft, FinalGradeDraftParams>((ref, p) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) {
-    throw StateError('Not signed in.');
-  }
-  final repo = ref.watch(finalGradesRepositoryProvider);
-  final saved = await repo.fetchForStudentSubject(
-    teacherId: teacher.id,
-    studentId: p.studentId,
-    classSubjectId: p.classSubjectId,
-  );
-  final suggestions = await repo.computeSuggestionsFromGrades(
-    teacherId: teacher.id,
-    studentId: p.studentId,
-    classSubjectId: p.classSubjectId,
-  );
-  return FinalGradeDraft(saved: saved, suggestions: suggestions);
-});
-
-final finalGradeSavedProvider =
-    FutureProvider.family<FinalGrade?, FinalGradeDraftParams>((ref, p) async {
-  final teacher = await ref.watch(currentTeacherProvider.future);
-  if (teacher == null) return null;
-  return ref.watch(finalGradesRepositoryProvider).fetchForStudentSubject(
+    FutureProvider.family<FinalGradeDraft, FinalGradeDraftParams>((
+      ref,
+      p,
+    ) async {
+      final teacher = await ref.watch(currentTeacherProvider.future);
+      if (teacher == null) {
+        throw StateError('Not signed in.');
+      }
+      final repo = ref.watch(finalGradesRepositoryProvider);
+      final saved = await repo.fetchForStudentSubject(
         teacherId: teacher.id,
         studentId: p.studentId,
         classSubjectId: p.classSubjectId,
       );
-});
+      final suggestions = await repo.computeSuggestionsFromGrades(
+        teacherId: teacher.id,
+        studentId: p.studentId,
+        classSubjectId: p.classSubjectId,
+      );
+      return FinalGradeDraft(saved: saved, suggestions: suggestions);
+    });
+
+final finalGradeSavedProvider =
+    FutureProvider.family<FinalGrade?, FinalGradeDraftParams>((ref, p) async {
+      final teacher = await ref.watch(currentTeacherProvider.future);
+      if (teacher == null) return null;
+      return ref
+          .watch(finalGradesRepositoryProvider)
+          .fetchForStudentSubject(
+            teacherId: teacher.id,
+            studentId: p.studentId,
+            classSubjectId: p.classSubjectId,
+          );
+    });

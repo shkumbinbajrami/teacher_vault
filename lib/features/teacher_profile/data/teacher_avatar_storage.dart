@@ -28,13 +28,19 @@ class TeacherAvatarStorage {
       throw ArgumentError('Image is empty.');
     }
     if (bytes.length > maxBytes) {
-      throw StateError('Image must be ${maxBytes ~/ (1024 * 1024)} MB or smaller.');
+      throw StateError(
+        'Image must be ${maxBytes ~/ (1024 * 1024)} MB or smaller.',
+      );
     }
-    final safeExt = extension.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+    final safeExt = extension
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .toLowerCase();
     final ext = safeExt.isEmpty ? 'jpg' : safeExt;
     final path =
         'teachers/$teacherId/${DateTime.now().millisecondsSinceEpoch}.$ext';
-    await _client.storage.from(bucketName).uploadBinary(
+    await _client.storage
+        .from(bucketName)
+        .uploadBinary(
           path,
           bytes,
           fileOptions: FileOptions(contentType: contentType, upsert: true),

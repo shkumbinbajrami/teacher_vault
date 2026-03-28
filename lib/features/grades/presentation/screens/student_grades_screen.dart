@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:teacher_vault/core/router/app_routes.dart';
 import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
 import 'package:teacher_vault/features/grades/domain/grade.dart';
 import 'package:teacher_vault/features/grades/presentation/providers/grades_providers.dart';
@@ -69,9 +70,9 @@ Future<void> _openFinalGradesPicker(
     );
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(postgrestErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
     }
   }
 }
@@ -113,9 +114,9 @@ class StudentGradesScreen extends ConsumerWidget {
       ref.invalidate(studentGradesProvider(studentId));
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(postgrestErrorMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
       }
     }
   }
@@ -131,13 +132,12 @@ class StudentGradesScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.insights_outlined),
             tooltip: 'Period & final grades',
-            onPressed: () =>
-                _openFinalGradesPicker(context, ref, studentId),
+            onPressed: () => _openFinalGradesPicker(context, ref, studentId),
           ),
         ],
       ),
       body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const TVSkeletonList(),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -146,7 +146,8 @@ class StudentGradesScreen extends ConsumerWidget {
               children: [
                 Text(postgrestErrorMessage(e), textAlign: TextAlign.center),
                 FilledButton(
-                  onPressed: () => ref.invalidate(studentGradesProvider(studentId)),
+                  onPressed: () =>
+                      ref.invalidate(studentGradesProvider(studentId)),
                   child: const Text('Retry'),
                 ),
               ],

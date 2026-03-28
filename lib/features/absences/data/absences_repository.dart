@@ -165,18 +165,26 @@ class AbsencesRepository {
   }) async {
     await _assertStudentInClassForSubject(studentId, classSubjectId);
 
-    await _client.from(_table).update({
-      'class_subject_id': classSubjectId,
-      'absence_date': _toPgDate(absenceDate),
-      'reason': _nullIfBlank(reason),
-    }).eq('id', absenceId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .update({
+          'class_subject_id': classSubjectId,
+          'absence_date': _toPgDate(absenceDate),
+          'reason': _nullIfBlank(reason),
+        })
+        .eq('id', absenceId)
+        .eq('teacher_id', teacherId);
   }
 
   Future<void> delete({
     required String teacherId,
     required String absenceId,
   }) async {
-    await _client.from(_table).delete().eq('id', absenceId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .delete()
+        .eq('id', absenceId)
+        .eq('teacher_id', teacherId);
   }
 
   Future<void> _assertStudentInClassForSubject(

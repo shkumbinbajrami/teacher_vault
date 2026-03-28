@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:teacher_vault/core/theme/app_theme.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
-import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
-import 'package:teacher_vault/core/widgets/app_button.dart';
-import 'package:teacher_vault/core/widgets/app_text_field.dart';
+import 'package:teacher_vault/core/widgets/tv_button.dart';
+import 'package:teacher_vault/core/widgets/tv_card.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
+import 'package:teacher_vault/core/widgets/tv_text_field.dart';
 import 'package:teacher_vault/features/final_grades/domain/final_grade_draft.dart';
 import 'package:teacher_vault/features/final_grades/domain/final_grade_suggestions.dart';
 import 'package:teacher_vault/features/final_grades/presentation/providers/final_grades_providers.dart';
 import 'package:teacher_vault/features/students/presentation/providers/students_providers.dart';
 import 'package:teacher_vault/features/teacher_profile/presentation/providers/teacher_profile_providers.dart';
 
-/// Review averages suggested from [grades], edit freely, then save to `final_grades` (never auto-saves).
 class FinalGradeFormScreen extends ConsumerStatefulWidget {
   const FinalGradeFormScreen({
     required this.studentId,
@@ -22,8 +23,6 @@ class FinalGradeFormScreen extends ConsumerStatefulWidget {
 
   final String studentId;
   final String classSubjectId;
-
-  /// When opened from class flows; optional subtitle / back stack only.
   final String? classId;
 
   @override
@@ -42,9 +41,9 @@ class _FinalGradeFormScreenState extends ConsumerState<FinalGradeFormScreen> {
   Object? _seededForDraft;
 
   FinalGradeDraftParams get _params => FinalGradeDraftParams(
-        studentId: widget.studentId,
-        classSubjectId: widget.classSubjectId,
-      );
+    studentId: widget.studentId,
+    classSubjectId: widget.classSubjectId,
+  );
 
   @override
   void dispose() {
@@ -106,7 +105,9 @@ class _FinalGradeFormScreenState extends ConsumerState<FinalGradeFormScreen> {
     if (!mounted) return;
     setState(() => _applyToControllers(draft.suggestions));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fields filled with averages from grade entries.')),
+      const SnackBar(
+        content: Text('Fields filled with averages from grade entries.'),
+      ),
     );
   }
 
@@ -118,7 +119,9 @@ class _FinalGradeFormScreenState extends ConsumerState<FinalGradeFormScreen> {
 
     setState(() => _saving = true);
     try {
-      await ref.read(finalGradesRepositoryProvider).upsert(
+      await ref
+          .read(finalGradesRepositoryProvider)
+          .upsert(
             teacherId: teacher.id,
             studentId: widget.studentId,
             classSubjectId: widget.classSubjectId,
@@ -132,9 +135,9 @@ class _FinalGradeFormScreenState extends ConsumerState<FinalGradeFormScreen> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(postgrestErrorMessage(e))),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -146,119 +149,214 @@ class _FinalGradeFormScreenState extends ConsumerState<FinalGradeFormScreen> {
     final draftAsync = ref.watch(finalGradeDraftProvider(_params));
     final studentAsync = ref.watch(studentDetailProvider(widget.studentId));
 
-    final title = studentAsync.maybeWhen(
-      data: (s) => s != null ? '${s.fullName} — Final' : 'Final grades',
-      orElse: () => 'Final grades',
+    final studentName = studentAsync.maybeWhen(
+      data: (s) => s?.fullName,
+      orElse: () => null,
     );
+    final title = studentName != null
+        ? 'Final Grades for $studentName'
+        : 'Final Grades';
+    const subtitle =
+        'Review period averages individually and override final mark.';
 
     return Scaffold(
-      appBar: TeacherVaultAppBar(
-        title: widget.classId != null
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(title),
-                  Text(
-                    'Period averages & year final',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimary
-                              .withValues(alpha: 0.88),
-                        ),
-                  ),
-                ],
-              )
-            : Text(title),
-      ),
-      body: draftAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(postgrestErrorMessage(e), textAlign: TextAlign.center),
-          ),
-        ),
-        data: (draft) {
-          _seedFromDraft(draft);
-          final hasSaved = draft.saved != null;
-          final hint = hasSaved
-              ? 'Values last saved to the database. Use the button below to refill '
-                  'from current grade entries if you want fresh suggestions.'
-              : 'Each period field is suggested as the average of all individual grades '
-                  'in that same period (period 1, 2, or 3). The final is suggested from '
-                  'those period averages. Edit anything before saving — nothing is stored until you tap Save.';
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    hint,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: _replaceWithSuggestions,
-                    icon: const Icon(Icons.calculate_outlined),
-                    label: const Text('Fill from grade averages'),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Period averages',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  AppTextField(
-                    controller: _p1,
-                    label: 'Period 1 (average of grades with period 1)',
-                    keyboardType: TextInputType.number,
-                    validator: (v) => _optionalInt(v, 'Period 1'),
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _p2,
-                    label: 'Period 2 (average of grades with period 2)',
-                    keyboardType: TextInputType.number,
-                    validator: (v) => _optionalInt(v, 'Period 2'),
-                  ),
-                  const SizedBox(height: 16),
-                  AppTextField(
-                    controller: _p3,
-                    label: 'Period 3 (average of grades with period 3)',
-                    keyboardType: TextInputType.number,
-                    validator: (v) => _optionalInt(v, 'Period 3'),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Year final',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  AppTextField(
-                    controller: _final,
-                    label: 'Final (suggested: average of period values above)',
-                    keyboardType: TextInputType.number,
-                    validator: (v) => _optionalInt(v, 'Final'),
-                  ),
-                  const SizedBox(height: 32),
-                  AppButton(
-                    label: 'Save to database',
-                    onPressed: _save,
-                    isLoading: _saving,
-                  ),
-                ],
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    TVSecondaryButton(
+                      label: 'Back',
+                      icon: Icons.arrow_back_rounded,
+                      onPressed: () => context.pop(),
+                    ),
+                  ],
+                ),
               ),
             ),
-          );
-        },
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(32, 0, 32, 64),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: TVCard(
+                      padding: const EdgeInsets.all(40),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            subtitle,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: AppTheme.textSecondaryColor),
+                          ),
+                          const SizedBox(height: 48),
+                          draftAsync.when(
+                            loading: () => const Center(
+                              child: TVProgressIndicator(),
+                            ),
+                            error: (e, _) => Center(
+                              child: Text(
+                                postgrestErrorMessage(e),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: AppTheme.errorColor,
+                                ),
+                              ),
+                            ),
+                            data: (draft) {
+                              _seedFromDraft(draft);
+                              final hasSaved = draft.saved != null;
+
+                              return Form(
+                                key: _formKey,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.info_outline_rounded,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Text(
+                                              hasSaved
+                                                  ? 'Values last saved to database. Refresh below to overwrite these with fresh suggestions.'
+                                                  : 'Each period field is auto-calculated as the average of individual grades in that period. You can edit them now.',
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .bodyMedium
+                                                  ?.copyWith(
+                                                    color:
+                                                        AppTheme.primaryColor,
+                                                  ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    TVSecondaryButton(
+                                      label: 'Compute Fresh Suggestions',
+                                      icon: Icons.calculate_outlined,
+                                      onPressed: _replaceWithSuggestions,
+                                    ),
+                                    const SizedBox(height: 48),
+                                    Text(
+                                      'Period Averages',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TVTextField(
+                                            controller: _p1,
+                                            label: 'Period 1',
+                                            keyboardType: TextInputType.number,
+                                            validator: (v) =>
+                                                _optionalInt(v, 'P1'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: TVTextField(
+                                            controller: _p2,
+                                            label: 'Period 2',
+                                            keyboardType: TextInputType.number,
+                                            validator: (v) =>
+                                                _optionalInt(v, 'P2'),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: TVTextField(
+                                            controller: _p3,
+                                            label: 'Period 3',
+                                            keyboardType: TextInputType.number,
+                                            validator: (v) =>
+                                                _optionalInt(v, 'P3'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 40),
+                                    Text(
+                                      'Subject Final',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TVTextField(
+                                      controller: _final,
+                                      label: 'Final Mark (Average of above)',
+                                      keyboardType: TextInputType.number,
+                                      validator: (v) =>
+                                          _optionalInt(v, 'Final'),
+                                    ),
+                                    const SizedBox(height: 48),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TVSecondaryButton(
+                                          label: 'Cancel',
+                                          onPressed: () => context.pop(),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        TVPrimaryButton(
+                                          label: 'Save Final Grades',
+                                          icon: Icons.check,
+                                          isLoading: _saving,
+                                          onPressed: _saving ? null : _save,
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

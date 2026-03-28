@@ -63,19 +63,27 @@ class ClassesRepository {
     String? description,
     required bool isActive,
   }) async {
-    await _client.from(_table).update({
-      'name': name.trim(),
-      'school_year': schoolYear.trim(),
-      'description': _nullIfBlank(description),
-      'is_active': isActive,
-    }).eq('id', classId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .update({
+          'name': name.trim(),
+          'school_year': schoolYear.trim(),
+          'description': _nullIfBlank(description),
+          'is_active': isActive,
+        })
+        .eq('id', classId)
+        .eq('teacher_id', teacherId);
   }
 
   Future<void> delete({
     required String teacherId,
     required String classId,
   }) async {
-    await _client.from(_table).delete().eq('id', classId).eq('teacher_id', teacherId);
+    await _client
+        .from(_table)
+        .delete()
+        .eq('id', classId)
+        .eq('teacher_id', teacherId);
   }
 
   static String? _nullIfBlank(String? value) {

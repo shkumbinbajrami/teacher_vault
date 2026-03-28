@@ -4,7 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:teacher_vault/core/router/app_routes.dart';
 import 'package:teacher_vault/core/theme/app_theme.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
-import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
+import 'package:teacher_vault/core/widgets/tv_badge.dart';
+import 'package:teacher_vault/core/widgets/tv_button.dart';
+import 'package:teacher_vault/core/widgets/tv_card.dart';
+import 'package:teacher_vault/core/widgets/tv_empty_state.dart';
+import 'package:teacher_vault/core/widgets/tv_page_header.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
 import 'package:teacher_vault/features/classes/domain/school_class.dart';
 import 'package:teacher_vault/features/classes/presentation/providers/classes_providers.dart';
 import 'package:teacher_vault/features/students/domain/student.dart';
@@ -51,119 +56,61 @@ class _StudentsListScreenState extends ConsumerState<StudentsListScreen> {
     }
   }
 
-  Widget _buildListFromStudents({
-    required BuildContext context,
-    required List<Student> students,
-    required bool hadSourceStudents,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final filtered = _applySearch(students);
+  @override
+  Widget build(BuildContext context) {
+    final classesAsync = ref.watch(classesListProvider);
 
-    if (!hadSourceStudents) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        children: [
-          SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
-          Center(
-            child: Column(
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(AppTheme.radius),
-                  ),
-                  child: Icon(
-                    Icons.groups_outlined,
-                    color: scheme.primary,
-                    size: 32,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  _filterClassId == null
-                      ? 'No students yet'
-                      : 'No students in this class',
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _filterClassId == null
-                      ? 'Add students, then enroll them in classes from each class page.'
-                      : 'Enroll students from the class page, or pick another class.',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (filtered.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
-        children: [
-          Center(
-            child: Text(
-              'No students match your search.',
-              style: textTheme.bodyLarge?.copyWith(
-                color: scheme.onSurfaceVariant,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TVPageHeader(
+                title: 'Students',
+                subtitle: 'Manage student profiles and enrollment.',
+                primaryActionLabel: 'Add Student',
+                onPrimaryAction: () => context.push(AppRoutes.studentsNew),
               ),
-              textAlign: TextAlign.center,
-            ),
+              _StudentsFilterBar(
+                searchController: _searchController,
+                onSearchChanged: () => setState(() {}),
+                filterClassId: _filterClassId,
+                onClassChanged: (id) => setState(() => _filterClassId = id),
+                classesAsync: classesAsync,
+              ),
+              const SizedBox(height: 24),
+              Expanded(child: _buildStudentListBody(context)),
+            ],
           ),
-        ],
-      );
-    }
-
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-      itemCount: filtered.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final s = filtered[index];
-        return _StudentCard(
-          student: s,
-          onTap: () => context.push(AppRoutes.studentDetailPath(s.id)),
-        );
-      },
+        ),
+      ),
     );
   }
 
   Widget _buildStudentListBody(BuildContext context) {
     if (_filterClassId == null) {
-      return ref.watch(studentsListProvider).when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+      return ref
+          .watch(studentsListProvider)
+          .when(
+            loading: () => const TVSkeletonList(),
             error: (e, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      postgrestErrorMessage(e),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () =>
-                          ref.invalidate(studentsListProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    postgrestErrorMessage(e),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppTheme.errorColor),
+                  ),
+                  const SizedBox(height: 16),
+                  TVSecondaryButton(
+                    label: 'Retry',
+                    onPressed: () => ref.invalidate(studentsListProvider),
+                  ),
+                ],
               ),
             ),
             data: (students) => RefreshIndicator(
@@ -178,27 +125,26 @@ class _StudentsListScreenState extends ConsumerState<StudentsListScreen> {
     }
 
     final classId = _filterClassId!;
-    return ref.watch(classEnrolledStudentsProvider(classId)).when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+    return ref
+        .watch(classEnrolledStudentsProvider(classId))
+        .when(
+          loading: () => const TVSkeletonList(),
           error: (e, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    postgrestErrorMessage(e),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: () => ref.invalidate(
-                      classEnrolledStudentsProvider(classId),
-                    ),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  postgrestErrorMessage(e),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppTheme.errorColor),
+                ),
+                const SizedBox(height: 16),
+                TVSecondaryButton(
+                  label: 'Retry',
+                  onPressed: () =>
+                      ref.invalidate(classEnrolledStudentsProvider(classId)),
+                ),
+              ],
             ),
           ),
           data: (students) => RefreshIndicator(
@@ -212,32 +158,59 @@ class _StudentsListScreenState extends ConsumerState<StudentsListScreen> {
         );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final classesAsync = ref.watch(classesListProvider);
+  Widget _buildListFromStudents({
+    required BuildContext context,
+    required List<Student> students,
+    required bool hadSourceStudents,
+  }) {
+    final filtered = _applySearch(students);
 
-    return Scaffold(
-      appBar: TeacherVaultAppBar(
-        title: const Text('Students'),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    if (!hadSourceStudents) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          _StudentsFilterBar(
-            searchController: _searchController,
-            onSearchChanged: () => setState(() {}),
-            filterClassId: _filterClassId,
-            onClassChanged: (id) => setState(() => _filterClassId = id),
-            classesAsync: classesAsync,
+          TVEmptyState(
+            title: _filterClassId == null
+                ? 'No students yet'
+                : 'No students in this class',
+            message: _filterClassId == null
+                ? 'Add students, then enroll them in classes.'
+                : 'Enroll students from the class page, or pick another class.',
+            icon: Icons.groups_outlined,
+            actionLabel: _filterClassId == null ? 'Add First Student' : null,
+            onAction: _filterClassId == null
+                ? () => context.push(AppRoutes.studentsNew)
+                : null,
           ),
-          Expanded(child: _buildStudentListBody(context)),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => context.push(AppRoutes.studentsNew),
-        icon: const Icon(Icons.person_add_outlined),
-        label: const Text('Add student'),
-      ),
+      );
+    }
+
+    if (filtered.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          TVEmptyState(
+            title: 'No matched students',
+            message: 'Try adjusting your search filters.',
+            icon: Icons.search_off_rounded,
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 64),
+      itemCount: filtered.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final s = filtered[index];
+        return _StudentCard(
+          student: s,
+          onTap: () => context.push(AppRoutes.studentDetailPath(s.id)),
+        );
+      },
     );
   }
 }
@@ -257,373 +230,216 @@ class _StudentsFilterBar extends StatelessWidget {
   final ValueChanged<String?> onClassChanged;
   final AsyncValue<List<SchoolClass>> classesAsync;
 
-  static InputBorder _fieldBorder(ColorScheme scheme) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        borderSide: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.65)),
-      );
-
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    const rowHeight = 44.0;
-    const filterWidth = 160.0;
-    const searchMaxWidth = 200.0;
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: searchMaxWidth),
-                  child: SizedBox(
-                    height: rowHeight,
-                    child: TextField(
-                      controller: searchController,
-                      onChanged: (_) => onSearchChanged(),
-                      textInputAction: TextInputAction.search,
-                      style: textTheme.bodyMedium,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        hintText: 'Name or email',
-                        hintStyle: textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          size: 20,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        prefixIconConstraints: const BoxConstraints(
-                          minWidth: 40,
-                          maxHeight: rowHeight,
-                        ),
-                        suffixIcon: searchController.text.isNotEmpty
-                            ? IconButton(
-                                tooltip: 'Clear',
-                                icon: const Icon(Icons.clear_rounded, size: 20),
-                                visualDensity: VisualDensity.compact,
-                                onPressed: () {
-                                  searchController.clear();
-                                  onSearchChanged();
-                                },
-                              )
-                            : null,
-                        filled: false,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 12,
-                        ),
-                        border: _fieldBorder(scheme),
-                        enabledBorder: _fieldBorder(scheme),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radius),
-                          borderSide:
-                              BorderSide(color: scheme.primary, width: 1.5),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Filters:',
-                      style: textTheme.labelLarge?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: filterWidth,
-                      height: rowHeight,
-                      child: classesAsync.when(
-                        loading: () => Center(
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        ),
-                        error: (_, __) => Tooltip(
-                          message: 'Could not load classes for filter.',
-                          child: Icon(
-                            Icons.error_outline_rounded,
-                            color: scheme.error,
-                            size: 22,
-                          ),
-                        ),
-                        data: (classes) {
-                          return DropdownButtonFormField<String?>(
-                            value: filterClassId,
-                            isExpanded: true,
-                            isDense: true,
-                            style: textTheme.bodyMedium,
-                            icon: Icon(
-                              Icons.arrow_drop_down_rounded,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Class',
-                              isDense: true,
-                              filled: false,
-                              contentPadding:
-                                  const EdgeInsetsDirectional.only(
-                                start: 12,
-                                end: 8,
-                                top: 10,
-                                bottom: 10,
-                              ),
-                              border: _fieldBorder(scheme),
-                              enabledBorder: _fieldBorder(scheme),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppTheme.radius,
-                                ),
-                                borderSide: BorderSide(
-                                  color: scheme.primary,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                            items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('All classes'),
-                              ),
-                              ...classes.map(
-                                (c) => DropdownMenuItem<String?>(
-                                  value: c.id,
-                                  child: Text(
-                                    c.name,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                            ],
-                            onChanged: onClassChanged,
-                            selectedItemBuilder: (context) {
-                              return [
-                                Align(
-                                  alignment:
-                                      AlignmentDirectional.centerStart,
-                                  child: Text(
-                                    'All classes',
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                ...classes.map(
-                                  (c) => Align(
-                                    alignment:
-                                        AlignmentDirectional.centerStart,
-                                    child: Text(
-                                      c.name,
-                                      style: textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ),
-                              ];
-                            },
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: TextField(
+            controller: searchController,
+            onChanged: (_) => onSearchChanged(),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search by name or email',
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded),
+                      onPressed: () {
+                        searchController.clear();
+                        onSearchChanged();
+                      },
+                    )
+                  : null,
             ),
           ),
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: scheme.outlineVariant.withValues(alpha: 0.35),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 1,
+          child: classesAsync.when(
+            loading: () => const TVProgressIndicator(),
+            error: (_, __) => const Icon(
+              Icons.error_outline_rounded,
+              color: AppTheme.errorColor,
+            ),
+            data: (classes) {
+              return DropdownButtonFormField<String?>(
+                value: filterClassId,
+                isExpanded: true,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: AppTheme.textPrimaryColor,
+                ),
+                decoration: const InputDecoration(hintText: 'Filter by Class'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('All classes'),
+                  ),
+                  ...classes.map(
+                    (c) => DropdownMenuItem<String?>(
+                      value: c.id,
+                      child: Text(c.name, overflow: TextOverflow.ellipsis),
+                    ),
+                  ),
+                ],
+                onChanged: onClassChanged,
+              );
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _StudentCard extends ConsumerWidget {
-  const _StudentCard({
-    required this.student,
-    required this.onTap,
-  });
+  const _StudentCard({required this.student, required this.onTap});
 
   final Student student;
   final VoidCallback onTap;
 
-  static const double _avatarSize = 40;
-
-  static String _classesLine(AsyncValue<List<SchoolClass>> async) {
-    return async.when(
-      data: (classes) {
-        if (classes.isEmpty) return 'Not enrolled in a class';
-        if (classes.length == 1) return classes.first.name;
-        final names = classes.map((c) => c.name).take(2).join(', ');
-        if (classes.length == 2) return names;
-        return '$names +${classes.length - 2} more';
-      },
-      loading: () => 'Loading classes…',
-      error: (_, __) => 'Could not load classes',
-    );
-  }
+  static const double _avatarSize = 48;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final s = student;
-    final initial =
-        s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?';
-
-    final classesAsync = ref.watch(studentClassesProvider(s.id));
+    final initial = s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?';
 
     Widget avatar;
     final url = s.avatarUrl;
     if (url != null && url.isNotEmpty) {
       avatar = ClipRRect(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
+        borderRadius: BorderRadius.circular(12),
         child: Image.network(
           url,
           width: _avatarSize,
           height: _avatarSize,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _placeholderAvatar(
-            scheme: scheme,
-            textTheme: textTheme,
-            initial: initial,
-          ),
+          errorBuilder: (_, __, ___) => _placeholderAvatar(initial),
         ),
       );
     } else {
-      avatar = _placeholderAvatar(
-        scheme: scheme,
-        textTheme: textTheme,
-        initial: initial,
-      );
+      avatar = _placeholderAvatar(initial);
     }
 
-    final email = s.email?.trim();
-    final emailDisplay =
-        email != null && email.isNotEmpty ? email : '—';
+    final emailDisplay = (s.email?.trim().isNotEmpty ?? false)
+        ? s.email!.trim()
+        : 'No email provided';
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              avatar,
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 28,
-                child: Text(
-                  s.fullName,
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 32,
-                child: Text(
-                  emailDisplay,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 26,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.meeting_room_outlined,
-                      size: 16,
-                      color: scheme.primary,
+    return TVCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            avatar,
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    s.fullName,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimaryColor,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        _classesLine(classesAsync),
-                        style: textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    emailDisplay,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondaryColor,
                     ),
-                  ],
-                ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: scheme.onSurfaceVariant,
-                size: 22,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(flex: 3, child: _ClassesInfo(studentId: s.id)),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.outlineColor,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  static Widget _placeholderAvatar({
-    required ColorScheme scheme,
-    required TextTheme textTheme,
-    required String initial,
-  }) {
+  Widget _placeholderAvatar(String initial) {
     return Container(
       width: _avatarSize,
       height: _avatarSize,
       decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(AppTheme.radius),
+        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
       child: Text(
         initial,
-        style: textTheme.titleSmall?.copyWith(
-          color: scheme.primary,
+        style: const TextStyle(
+          color: AppTheme.primaryColor,
           fontWeight: FontWeight.w700,
+          fontSize: 18,
         ),
+      ),
+    );
+  }
+}
+
+class _ClassesInfo extends ConsumerWidget {
+  const _ClassesInfo({required this.studentId});
+  final String studentId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final classesAsync = ref.watch(studentClassesProvider(studentId));
+    final textTheme = Theme.of(context).textTheme;
+
+    return classesAsync.when(
+      data: (classes) {
+        if (classes.isEmpty) {
+          return const TVBadge(label: 'Unenrolled', type: TVBadgeType.warning);
+        }
+        if (classes.length == 1) {
+          return TVBadge(
+            label: classes.first.name,
+            type: TVBadgeType.neutral,
+            icon: Icons.meeting_room_outlined,
+          );
+        }
+        final names = classes.map((c) => c.name).take(2).join(', ');
+        final label = classes.length == 2
+            ? names
+            : '$names +${classes.length - 2}';
+        return TVBadge(
+          label: label,
+          type: TVBadgeType.neutral,
+          icon: Icons.meeting_room_outlined,
+        );
+      },
+      loading: () => Text(
+        'Loading...',
+        style: textTheme.bodySmall?.copyWith(
+          color: AppTheme.textSecondaryColor,
+        ),
+      ),
+      error: (_, __) => Text(
+        'Error',
+        style: textTheme.bodySmall?.copyWith(color: AppTheme.errorColor),
       ),
     );
   }

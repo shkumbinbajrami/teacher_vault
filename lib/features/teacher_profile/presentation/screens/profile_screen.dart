@@ -5,15 +5,14 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:teacher_vault/core/providers/supabase_provider.dart';
-import 'package:teacher_vault/core/router/app_routes.dart';
 import 'package:teacher_vault/core/theme/app_theme.dart';
 import 'package:teacher_vault/core/utils/postgrest_error_message.dart';
-import 'package:teacher_vault/core/widgets/teacher_vault_app_bar.dart';
-import 'package:teacher_vault/core/widgets/app_button.dart';
-import 'package:teacher_vault/core/widgets/app_text_field.dart';
+import 'package:teacher_vault/core/widgets/tv_button.dart';
+import 'package:teacher_vault/core/widgets/tv_card.dart';
+import 'package:teacher_vault/core/widgets/tv_skeleton.dart';
+import 'package:teacher_vault/core/widgets/tv_text_field.dart';
 import 'package:teacher_vault/features/teacher_profile/data/teacher_avatar_storage.dart';
 import 'package:teacher_vault/features/teacher_profile/domain/teacher.dart';
 import 'package:teacher_vault/features/teacher_profile/presentation/providers/teacher_profile_providers.dart';
@@ -62,7 +61,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
       return;
     }
-    // Same teacher (e.g. after refresh / invalidate): keep avatar URL aligned with DB.
     final server = avatarUrl ?? '';
     if (_avatarUrl.text.trim() == server.trim()) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -77,20 +75,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _avatarUrl.clear();
     setState(() {});
     try {
-      await ref.read(teacherRepositoryProvider).updateAvatarUrl(
-            teacherId: teacherId,
-            avatarUrl: null,
-          );
+      await ref
+          .read(teacherRepositoryProvider)
+          .updateAvatarUrl(teacherId: teacherId, avatarUrl: null);
       ref.invalidate(currentTeacherProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo removed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo removed.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(postgrestErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
     }
   }
 
@@ -161,7 +158,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (bytes == null || bytes.isEmpty) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not read the image. Try another file.')),
+        const SnackBar(
+          content: Text('Could not read the image. Try another file.'),
+        ),
       );
       return;
     }
@@ -170,7 +169,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (ext.isEmpty && picked.name.contains('.')) {
       ext = picked.name.split('.').last.toLowerCase();
     }
-    if (ext.isEmpty) ext = 'jpg';
+    if (ext.isEmpty) {
+      ext = 'jpg';
+    }
 
     setState(() => _uploadingAvatar = true);
     try {
@@ -185,32 +186,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       _avatarUrl.text = url;
       try {
-        await ref.read(teacherRepositoryProvider).updateAvatarUrl(
-              teacherId: teacherId,
-              avatarUrl: url,
-            );
+        await ref
+            .read(teacherRepositoryProvider)
+            .updateAvatarUrl(teacherId: teacherId, avatarUrl: url);
         ref.invalidate(currentTeacherProvider);
       } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(postgrestErrorMessage(e))),
-        );
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e))));
         return;
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo saved.')));
     } on StorageException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message.isNotEmpty ? e.message : 'Upload failed')),
+        SnackBar(
+          content: Text(e.message.isNotEmpty ? e.message : 'Upload failed'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -218,7 +222,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _save(String teacherId) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    await ref.read(profileUpdateControllerProvider.notifier).submit(
+    await ref
+        .read(profileUpdateControllerProvider.notifier)
+        .submit(
           teacherId: teacherId,
           fullName: _fullName.text,
           email: _email.text,
@@ -242,7 +248,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return '${l.year}-${l.month.toString().padLeft(2, '0')}-${l.day.toString().padLeft(2, '0')}';
   }
 
-  /// Supabase [User] timestamps may be [DateTime] or ISO [String].
   static String _formatAuthInstant(dynamic t) {
     if (t == null) return '—';
     if (t is DateTime) return _formatDate(t);
@@ -258,202 +263,128 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final teacherAsync = ref.watch(currentTeacherProvider);
     final summaryAsync = ref.watch(teacherWorkspaceSummaryProvider);
     final update = ref.watch(profileUpdateControllerProvider);
-    final scheme = Theme.of(context).colorScheme;
 
     ref.listen(profileUpdateControllerProvider, (prev, next) {
       next.whenOrNull(
         data: (_) {
           if (prev?.isLoading == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile updated')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Profile updated')));
           }
         },
-        error: (e, _) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(postgrestErrorMessage(e))),
-          );
-        },
+        error: (e, _) => ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(postgrestErrorMessage(e)))),
       );
     });
 
     return Scaffold(
-      appBar: teacherAsync.maybeWhen(
-        data: (t) {
-          if (t == null) {
-            return const TeacherVaultAppBar(title: Text('Your profile'));
-          }
-          return TeacherVaultAppBar(
-            title: const Text('Your profile'),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 4),
-                child: _TeacherBarAvatar(teacher: t),
-              ),
-            ],
-          );
-        },
-        orElse: () => const TeacherVaultAppBar(title: Text('Your profile')),
-      ),
-      body: teacherAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: teacherAsync.when(
+          loading: () => const TVProgressIndicator(),
+          error: (e, _) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(postgrestErrorMessage(e), textAlign: TextAlign.center),
+                Text(
+                  postgrestErrorMessage(e),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppTheme.errorColor),
+                ),
                 const SizedBox(height: 16),
-                FilledButton(
+                TVSecondaryButton(
+                  label: 'Retry',
                   onPressed: () => ref.invalidate(currentTeacherProvider),
-                  child: const Text('Retry'),
                 ),
               ],
             ),
           ),
-        ),
-        data: (teacher) {
-          if (teacher == null) {
-            return const Center(child: Text('Sign in to view your profile.'));
-          }
+          data: (teacher) {
+            if (teacher == null) {
+              return const Center(child: Text('Sign in to view your profile.'));
+            }
 
-          _seedFieldsIfNeeded(
-            teacherId: teacher.id,
-            fullName: teacher.fullName,
-            email: teacher.email,
-            avatarUrl: teacher.avatarUrl,
-            bio: teacher.bio,
-          );
+            _seedFieldsIfNeeded(
+              teacherId: teacher.id,
+              fullName: teacher.fullName,
+              email: teacher.email,
+              avatarUrl: teacher.avatarUrl,
+              bio: teacher.bio,
+            );
 
-          final saving = update.isLoading;
-          final user = ref.watch(supabaseProvider).auth.currentUser;
+            final saving = update.isLoading;
+            final user = ref.watch(supabaseProvider).auth.currentUser;
 
-          return RefreshIndicator(
-            onRefresh: _onRefresh,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final horizontalPad = 20.0;
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPad,
-                    12,
-                    horizontalPad,
-                    32,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _ProfileHeroCard(teacher: teacher),
-                      const SizedBox(height: 14),
-                      summaryAsync.when(
-                        loading: () => const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+            return RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 960;
+                  final pad = const EdgeInsets.fromLTRB(32, 24, 32, 64);
+
+                  final account = _AccountDetailsCard(
+                    teacher: teacher,
+                    user: user,
+                    formatAuthInstant: _formatAuthInstant,
+                  );
+                  final edit = _EditProfileCard(
+                    formKey: _formKey,
+                    fullName: _fullName,
+                    email: _email,
+                    avatarUrl: _avatarUrl,
+                    bio: _bio,
+                    optionalEmailError: _optionalEmailError,
+                    saving: saving,
+                    uploadingAvatar: _uploadingAvatar,
+                    onPickAvatar: () => _pickAndUploadAvatar(teacher.id),
+                    onClearAvatar: () => _clearAvatarAndPersist(teacher.id),
+                    onSave: () => _save(teacher.id),
+                  );
+
+                  return SingleChildScrollView(
+                    padding: pad,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _ProfileHeroCard(teacher: teacher),
+                        const SizedBox(height: 24),
+                        summaryAsync.when(
+                          loading: () => const TVProgressIndicator(),
+                          error: (e, _) => TVCard(
+                            child: Text(
+                              'Could not load workspace stats: ${postgrestErrorMessage(e)}',
+                              style: const TextStyle(
+                                color: AppTheme.errorColor,
+                              ),
                             ),
                           ),
+                          data: (s) => _WorkspaceStatsBlock(summary: s),
                         ),
-                        error: (e, _) => _InfoNoticeCard(
-                          scheme: scheme,
-                          message:
-                              'Could not load workspace stats: ${postgrestErrorMessage(e)}',
-                          isError: true,
-                        ),
-                        data: (s) => _WorkspaceStatsBlock(
-                          summary: s,
-                          bodyWidth: constraints.maxWidth - horizontalPad * 2,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _QuickLinksRow(),
-                      const SizedBox(height: 14),
-                      LayoutBuilder(
-                        builder: (context, inner) {
-                          final w = inner.maxWidth;
-                          final wide = w >= 960;
-                          final account = _AccountDetailsCard(
-                            teacher: teacher,
-                            user: user,
-                            formatAuthInstant: _formatAuthInstant,
-                          );
-                          final edit = _EditProfileCard(
-                            formKey: _formKey,
-                            fullName: _fullName,
-                            email: _email,
-                            avatarUrl: _avatarUrl,
-                            bio: _bio,
-                            optionalEmailError: _optionalEmailError,
-                            saving: saving,
-                            uploadingAvatar: _uploadingAvatar,
-                            onPickAvatar: () => _pickAndUploadAvatar(teacher.id),
-                            onClearAvatar: () => _clearAvatarAndPersist(teacher.id),
-                            onSave: () => _save(teacher.id),
-                          );
-                          if (!wide) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                account,
-                                const SizedBox(height: 14),
-                                edit,
-                              ],
-                            );
-                          }
-                          return Row(
+                        const SizedBox(height: 24),
+                        if (!wide) ...[
+                          edit,
+                          const SizedBox(height: 24),
+                          account,
+                        ] else
+                          Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(flex: 5, child: account),
-                              const SizedBox(width: 20),
                               Expanded(flex: 5, child: edit),
+                              const SizedBox(width: 24),
+                              Expanded(flex: 4, child: account),
                             ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Small avatar shown in the profile screen app bar actions.
-class _TeacherBarAvatar extends StatelessWidget {
-  const _TeacherBarAvatar({required this.teacher});
-
-  final Teacher teacher;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final onPrimary = scheme.onPrimary;
-    final name = teacher.fullName?.trim().isNotEmpty == true
-        ? teacher.fullName!.trim()
-        : 'Teacher';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    final url = teacher.avatarUrl?.trim();
-    if (url != null && url.isNotEmpty) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundColor: onPrimary.withValues(alpha: 0.2),
-        backgroundImage: NetworkImage(url),
-        onBackgroundImageError: (_, __) {},
-      );
-    }
-    return CircleAvatar(
-      radius: 18,
-      backgroundColor: onPrimary.withValues(alpha: 0.2),
-      foregroundColor: onPrimary,
-      child: Text(
-        initial,
-        style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -461,229 +392,159 @@ class _TeacherBarAvatar extends StatelessWidget {
 
 class _ProfileHeroCard extends StatelessWidget {
   const _ProfileHeroCard({required this.teacher});
-
   final Teacher teacher;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final t = teacher;
-    final name = t.fullName?.trim().isNotEmpty == true
-        ? t.fullName!.trim()
+    final name = teacher.fullName?.trim().isNotEmpty == true
+        ? teacher.fullName!.trim()
         : 'Teacher';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
 
     Widget avatar;
-    const r = 36.0;
-    final url = t.avatarUrl?.trim();
+    final url = teacher.avatarUrl?.trim();
     if (url != null && url.isNotEmpty) {
-      avatar = CircleAvatar(
-        radius: r,
-        backgroundImage: NetworkImage(url),
-        onBackgroundImageError: (_, __) {},
-        child: null,
+      avatar = ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Image.network(url, width: 96, height: 96, fit: BoxFit.cover),
       );
     } else {
-      avatar = CircleAvatar(
-        radius: r,
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.primary,
+      avatar = Container(
+        width: 96,
+        height: 96,
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        alignment: Alignment.center,
         child: Text(
           initial,
-          style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppTheme.primaryColor,
+          ),
         ),
       );
     }
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            avatar,
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    return TVCard(
+      padding: const EdgeInsets.all(32),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          avatar,
+          const SizedBox(width: 24),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Text(
+                  name,
+                  style: textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimaryColor,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (teacher.email != null &&
+                    teacher.email!.trim().isNotEmpty) ...[
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const Icon(
+                        Icons.email_outlined,
+                        size: 16,
+                        color: AppTheme.textSecondaryColor,
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          name,
-                          style: textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.25,
+                          teacher.email!.trim(),
+                          style: textTheme.titleMedium?.copyWith(
+                            color: AppTheme.textSecondaryColor,
                           ),
                         ),
-                      ),
-                      Chip(
-                        label: Text(t.isActive ? 'Active' : 'Inactive'),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: EdgeInsets.zero,
-                        labelPadding:
-                            const EdgeInsets.symmetric(horizontal: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radius),
-                        ),
-                        side: BorderSide(color: scheme.outlineVariant),
                       ),
                     ],
                   ),
-                  if (t.email != null && t.email!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.email_outlined,
-                          size: 16,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            t.email!.trim(),
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (t.bio != null && t.bio!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      t.bio!.trim(),
-                      style: textTheme.bodyMedium?.copyWith(height: 1.35),
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  const SizedBox(height: 12),
                 ],
-              ),
+                if (teacher.bio != null && teacher.bio!.trim().isNotEmpty)
+                  Text(
+                    teacher.bio!.trim(),
+                    style: textTheme.bodyLarge?.copyWith(height: 1.5),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _WorkspaceStatsBlock extends StatelessWidget {
-  const _WorkspaceStatsBlock({
-    required this.summary,
-    required this.bodyWidth,
-  });
-
+  const _WorkspaceStatsBlock({required this.summary});
   final TeacherWorkspaceSummary summary;
-  final double bodyWidth;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final s = summary;
-    final oneRow = bodyWidth >= 800;
-
-    Widget statGrid() {
-      final tiles = [
-        _MiniStat(
-          value: '${s.classCount}',
-          label: s.classCount == 1 ? 'Class' : 'Classes',
-          icon: Icons.meeting_room_outlined,
-          color: scheme.primary,
-        ),
-        _MiniStat(
-          value: '${s.studentCount}',
-          label: s.studentCount == 1 ? 'Student' : 'Students',
-          icon: Icons.groups_outlined,
-          color: scheme.tertiary,
-        ),
-        _MiniStat(
-          value: '${s.subjectCount}',
-          label: s.subjectCount == 1 ? 'Subject' : 'Subjects',
-          icon: Icons.menu_book_outlined,
-          color: scheme.primary,
-        ),
-        _MiniStat(
-          value: '${s.classSubjectAssignmentCount}',
-          label: 'Class–subject links',
-          icon: Icons.link_rounded,
-          color: scheme.secondary,
-        ),
-      ];
-      if (oneRow) {
-        return Row(
-          children: [
-            for (var i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: 8),
-              Expanded(child: tiles[i]),
-            ],
-          ],
-        );
-      }
-      return Column(
+    return TVCard(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(child: tiles[0]),
-              const SizedBox(width: 8),
-              Expanded(child: tiles[1]),
-            ],
+          Text(
+            'Your Workspace',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
           Row(
             children: [
-              Expanded(child: tiles[2]),
-              const SizedBox(width: 8),
-              Expanded(child: tiles[3]),
+              Expanded(
+                child: _MiniStat(
+                  value: '${summary.classCount}',
+                  label: 'Classes',
+                  icon: Icons.meeting_room_outlined,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _MiniStat(
+                  value: '${summary.studentCount}',
+                  label: 'Students',
+                  icon: Icons.groups_outlined,
+                  color: AppTheme.successColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _MiniStat(
+                  value: '${summary.subjectCount}',
+                  label: 'Subjects',
+                  icon: Icons.menu_book_outlined,
+                  color: AppTheme.secondaryColor,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _MiniStat(
+                  value: '${summary.classSubjectAssignmentCount}',
+                  label: 'Links',
+                  icon: Icons.link_rounded,
+                  color: AppTheme.outlineColor,
+                ),
+              ),
             ],
           ),
         ],
-      );
-    }
-
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your workspace',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Totals from your Teacher Vault data (this session).',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 14),
-            statGrid(),
-          ],
-        ),
       ),
     );
   }
@@ -696,7 +557,6 @@ class _MiniStat extends StatelessWidget {
     required this.icon,
     required this.color,
   });
-
   final String value;
   final String label;
   final IconData icon;
@@ -704,66 +564,40 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: 0.55),
-        ),
+        border: Border.all(color: AppTheme.outlineColor),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: color),
-          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 16),
           Text(
             value,
-            style: textTheme.titleLarge?.copyWith(
+            style: textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: textTheme.labelSmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
+            style: textTheme.titleSmall?.copyWith(
+              color: AppTheme.textSecondaryColor,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
-    );
-  }
-}
-
-class _QuickLinksRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        FilledButton.tonalIcon(
-          onPressed: () => context.push(AppRoutes.classes),
-          icon: const Icon(Icons.meeting_room_outlined, size: 18),
-          label: const Text('Classes'),
-        ),
-        FilledButton.tonalIcon(
-          onPressed: () => context.push(AppRoutes.students),
-          icon: const Icon(Icons.groups_outlined, size: 18),
-          label: const Text('Students'),
-        ),
-        FilledButton.tonalIcon(
-          onPressed: () => context.push(AppRoutes.subjects),
-          icon: const Icon(Icons.menu_book_outlined, size: 18),
-          label: const Text('Subjects'),
-        ),
-      ],
     );
   }
 }
@@ -774,73 +608,44 @@ class _AccountDetailsCard extends StatelessWidget {
     required this.user,
     required this.formatAuthInstant,
   });
-
   final Teacher teacher;
   final User? user;
   final String Function(dynamic t) formatAuthInstant;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Account & record IDs',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+    return TVCard(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Account Analytics',
+            style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 24),
+          if (user != null) ...[
+            _ReadonlyField(label: 'Signed in as', value: user!.email ?? '—'),
+            const SizedBox(height: 16),
+            _ReadonlyField(
+              label: 'Last sign-in',
+              value: formatAuthInstant(user!.lastSignInAt),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Useful for support. Sign-in data comes from Supabase Auth; teaching data from your `teachers` row.',
-              style: textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+            const SizedBox(height: 16),
+            _ReadonlyField(
+              label: 'Account created',
+              value: formatAuthInstant(user!.createdAt),
             ),
-            const SizedBox(height: 12),
-            if (user != null) ...[
-              _IdRow(
-                label: 'Auth user ID',
-                value: user!.id,
-                scheme: scheme,
-                textTheme: textTheme,
-              ),
-              const SizedBox(height: 10),
-              _ReadonlyField(
-                label: 'Signed in as',
-                value: user!.email ?? '—',
-              ),
-              const SizedBox(height: 6),
-              _ReadonlyField(
-                label: 'Last sign-in',
-                value: formatAuthInstant(user!.lastSignInAt),
-              ),
-              const SizedBox(height: 6),
-              _ReadonlyField(
-                label: 'Account created',
-                value: formatAuthInstant(user!.createdAt),
-              ),
-              const SizedBox(height: 12),
-            ],
-            _IdRow(
-              label: 'Teacher record ID',
-              value: teacher.id,
-              scheme: scheme,
-              textTheme: textTheme,
-            ),
+            const SizedBox(height: 24),
+            const Divider(color: AppTheme.outlineColor),
+            const SizedBox(height: 24),
+            _IdRow(label: 'Auth User ID', value: user!.id),
+            const SizedBox(height: 16),
           ],
-        ),
+          _IdRow(label: 'Teacher Record ID', value: teacher.id),
+        ],
       ),
     );
   }
@@ -848,30 +653,28 @@ class _AccountDetailsCard extends StatelessWidget {
 
 class _ReadonlyField extends StatelessWidget {
   const _ReadonlyField({required this.label, required this.value});
-
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 112,
+          width: 120,
           child: Text(
             label,
-            style: textTheme.labelMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
+            style: textTheme.titleSmall?.copyWith(
+              color: AppTheme.textSecondaryColor,
             ),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: textTheme.bodyMedium,
+            style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
           ),
         ),
       ],
@@ -880,90 +683,57 @@ class _ReadonlyField extends StatelessWidget {
 }
 
 class _IdRow extends StatelessWidget {
-  const _IdRow({
-    required this.label,
-    required this.value,
-    required this.scheme,
-    required this.textTheme,
-  });
-
+  const _IdRow({required this.label, required this.value});
   final String label;
   final String value;
-  final ColorScheme scheme;
-  final TextTheme textTheme;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: textTheme.labelMedium?.copyWith(
-            color: scheme.onSurfaceVariant,
+          style: textTheme.titleSmall?.copyWith(
+            color: AppTheme.textSecondaryColor,
           ),
         ),
-        const SizedBox(height: 4),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: SelectableText(
-                value,
-                style: textTheme.labelSmall?.copyWith(
-                  fontFamily: 'monospace',
-                  color: scheme.onSurfaceVariant,
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            border: Border.all(color: AppTheme.outlineColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: SelectableText(
+                  value,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Copy',
-              visualDensity: VisualDensity.compact,
-              icon: Icon(Icons.copy_outlined, size: 18, color: scheme.primary),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: value));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$label copied')),
-                );
-              },
-            ),
-          ],
+              InkWell(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: value));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('$label copied')));
+                },
+                child: const Icon(
+                  Icons.copy_outlined,
+                  size: 20,
+                  color: AppTheme.primaryColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
-    );
-  }
-}
-
-class _InfoNoticeCard extends StatelessWidget {
-  const _InfoNoticeCard({
-    required this.scheme,
-    required this.message,
-    this.isError = false,
-  });
-
-  final ColorScheme scheme;
-  final String message;
-  final bool isError;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isError
-            ? scheme.errorContainer.withValues(alpha: 0.35)
-            : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        border: Border.all(
-          color: isError ? scheme.error : scheme.outlineVariant,
-        ),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(
-          color: isError ? scheme.onErrorContainer : scheme.onSurfaceVariant,
-        ),
-      ),
     );
   }
 }
@@ -997,214 +767,116 @@ class _EditProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final busy = saving || uploadingAvatar;
 
-    return Material(
-      color: scheme.surfaceContainerLow,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.person_outline_rounded, color: scheme.primary, size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Edit profile',
-                          style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Photo is stored in Supabase Storage; name and bio save to your teachers row.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+    return TVCard(
+      padding: const EdgeInsets.all(32),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Edit Profile',
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 20),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radius),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.55),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ListenableBuilder(
-                    listenable: avatarUrl,
-                    builder: (context, _) {
-                      final hasPhoto = avatarUrl.text.trim().isNotEmpty;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Profile photo',
-                            style: textTheme.labelLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppTheme.outlineColor),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ListenableBuilder(
+                listenable: avatarUrl,
+                builder: (context, _) {
+                  final hasPhoto = avatarUrl.text.trim().isNotEmpty;
+                  return Row(
+                    children: [
+                      if (hasPhoto)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            avatarUrl.text.trim(),
+                            width: 64,
+                            height: 64,
+                            fit: BoxFit.cover,
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                        )
+                      else
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceColor,
+                            border: Border.all(color: AppTheme.outlineColor),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(
+                            Icons.add_a_photo_outlined,
+                            color: AppTheme.textSecondaryColor,
+                          ),
+                        ),
+                      const SizedBox(width: 20),
+                      if (uploadingAvatar)
+                        const TVProgressIndicator()
+                      else
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Builder(
-                                builder: (context) {
-                                  final url = avatarUrl.text.trim();
-                                  const size = 88.0;
-                                  if (url.isEmpty) {
-                                    return CircleAvatar(
-                                      radius: size / 2,
-                                      backgroundColor: scheme.primaryContainer,
-                                      foregroundColor: scheme.primary,
-                                      child: Icon(
-                                        Icons.add_a_photo_outlined,
-                                        size: 32,
-                                        color: scheme.primary,
-                                      ),
-                                    );
-                                  }
-                                  return CircleAvatar(
-                                    radius: size / 2,
-                                    backgroundColor: scheme.surfaceContainerHighest,
-                                    backgroundImage: NetworkImage(url),
-                                    onBackgroundImageError: (_, __) {},
-                                  );
-                                },
+                              TVSecondaryButton(
+                                label: 'Upload Photo',
+                                icon: Icons.upload_rounded,
+                                onPressed: busy ? null : onPickAvatar,
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    FilledButton.tonalIcon(
-                                      onPressed: busy ? null : onPickAvatar,
-                                      icon: uploadingAvatar
-                                          ? SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: scheme.primary,
-                                              ),
-                                            )
-                                          : const Icon(Icons.upload_rounded, size: 20),
-                                      label: Text(uploadingAvatar ? 'Uploading…' : 'Choose photo'),
+                              const SizedBox(height: 8),
+                              if (hasPhoto)
+                                InkWell(
+                                  onTap: busy ? null : onClearAvatar,
+                                  child: Text(
+                                    'Remove photo',
+                                    style: textTheme.titleSmall?.copyWith(
+                                      color: AppTheme.errorColor,
                                     ),
-                                    const SizedBox(height: 8),
-                                    TextButton(
-                                      onPressed: busy || !hasPhoto ? null : onClearAvatar,
-                                      child: const Text('Remove photo'),
-                                    ),
-                                  ],
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'JPG, PNG, or WebP · up to ${TeacherAvatarStorage.maxBytes ~/ (1024 * 1024)} MB · '
-                            'bucket “${TeacherAvatarStorage.bucketName}” must exist in Supabase.',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-              Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(bottom: 8),
-                  title: Text(
-                    'Advanced: paste image URL',
-                    style: textTheme.labelLarge?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Skip upload and point to any public image URL.',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  children: [
-                    AppTextField(
-                      controller: avatarUrl,
-                      label: 'Image URL',
-                      keyboardType: TextInputType.url,
-                      autocorrect: false,
-                      textInputAction: TextInputAction.next,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              AppTextField(
-                controller: fullName,
-                label: 'Full name',
-                textInputAction: TextInputAction.next,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Enter your name';
-                  }
-                  return null;
+                        ),
+                    ],
+                  );
                 },
               ),
-              const SizedBox(height: 14),
-              AppTextField(
-                controller: email,
-                label: 'Email (optional)',
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                textInputAction: TextInputAction.next,
-                validator: optionalEmailError,
-              ),
-              const SizedBox(height: 14),
-              AppTextField(
-                controller: bio,
-                label: 'Bio (optional)',
-                textInputAction: TextInputAction.newline,
-                maxLines: 4,
-              ),
-              const SizedBox(height: 22),
-              AppButton(
-                label: 'Save changes',
-                isLoading: saving,
-                onPressed: busy ? null : onSave,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            TVTextField(
+              controller: fullName,
+              label: 'Full Name',
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Enter your name' : null,
+            ),
+            const SizedBox(height: 16),
+            TVTextField(
+              controller: email,
+              label: 'Email (Optional)',
+              keyboardType: TextInputType.emailAddress,
+              validator: optionalEmailError,
+            ),
+            const SizedBox(height: 16),
+            TVTextField(controller: bio, label: 'Bio', maxLines: 4),
+            const SizedBox(height: 32),
+            TVPrimaryButton(
+              label: 'Save Changes',
+              icon: Icons.check_circle_outline,
+              isLoading: saving,
+              onPressed: busy ? null : onSave,
+            ),
+          ],
         ),
       ),
     );
